@@ -1,0 +1,30 @@
+{
+  "//": [
+    "Berkas yang TIDAK diimpor siapa pun, tapi tetap hidup karena dijalankan",
+    "atau dimuat oleh perkakas — bukan dead code.",
+    "",
+    "Hanya masukkan di sini kalau alasannya benar-benar 'dipakai di luar graf",
+    "import'. Kalau alasan sebenarnya 'belum sempat dipakai', itu dead code",
+    "yang harus dihapus, bukan dikecualikan."
+  ],
+
+  "berkas": {
+    "server/index.ts": "Titik masuk `npm start`; dijalankan Node, bukan diimpor.",
+    "api/ptsp.ts": "Entry point Vercel Function untuk /api/* dan /v1/*; dijalankan platform, bukan diimpor.",
+    "api/janaka.ts": "Entry point Vercel Function untuk /api/janaka/*; dijalankan platform, bukan diimpor.",
+    "server/ptspHandler.ts": "Handler PTSP; dirujuk dari api/ptsp.ts dengan ekstensi .js dan dari server/index.ts.",
+    "server/janakaHandler.ts": "Handler manajemen akun; dirujuk dari api/janaka.ts dengan ekstensi .js.",
+    "server/ptspProxy.ts": "Proxy PTSP; dipakai kedua handler.",
+    "server/janakaAdminApi.ts": "API manajemen akun; hanya dimuat lewat import dinamis supaya tidak menarik firebase-admin ke rute PTSP.",
+    "vite.config.ts": "Titik masuk Vite.",
+    "vite-plugin-janaka-api.ts": "Plugin Vite; dipakai dari vite.config.ts.",
+    "vite-plugin-pwa-janaka.ts": "Plugin Vite; dipakai dari vite.config.ts."
+  },
+
+  "ekspor": {
+    "function adalahEmailAkun": "Utilitas deteksi email semu; akan dipakai skrip migrasi batch & alat audit.",
+    "const MAKS_PERCOBAAN": "Konstanta batas kunci login; dipakai internal modul kunciLogin.",
+    "const DURASI_KUNCI_MS": "Konstanta durasi kunci login; dipakai internal modul kunciLogin.",
+    "const KODE_KREDENSIAL_SALAH": "Himpunan kode galat kredensial; dipakai internal & re-ekspor firebase/auth."
+  }
+}

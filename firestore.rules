@@ -1,0 +1,84 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /* ══════════════════════════════════════════════════════════════
+     *  JANAKA — Aturan keamanan Firestore
+     *
+     *  Peran hanya ada dua: `admin` dan `user`. Hak akses per menu
+     *  disimpan di dokumen `users/{uid}` dan dibaca server-side
+     *  (Firebase Admin SDK) sebagai sumber kebenaran.
+     *
+     *  ⚠️ Aturan ini adalah lapis kedua. Lapis pertama ada di
+     *  `/api/janaka/*` yang memeriksa ID token sebelum menyentuh data.
+     * ══════════════════════════════════════════════════════════════ */
+
+    function usersDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isActive() {
+      return isSignedIn() && usersDoc().data.isActive != false;
+    }
+
+    function isAdmin() {
+      return isActive() && usersDoc().data.role == 'admin';
+    }
+
+    /* Izin per menu — cerminan `AppPermissions` di src/lib/access.ts */
+    function punyaIzin(kunci) {
+      return isActive() && usersDoc().data.permissions[kunci] == true;
+    }
+
+    /* ─── Profil pengguna ─── */
+    match /users/{userId} {
+      // Semua akun aktif boleh melihat daftar pengguna (dipakai admin
+      // untuk menampilkan nama petugas pada laporan).
+      allow read: if isActive();
+
+      // ⚠️ Menulis profil sendiri DILARANG dari browser.
+      // Hanya Admin SDK (server) yang boleh membuat/mengubah dokumen ini —
+      // itu yang mencegah eskalasi role dari sisi peramban.
+      allow create, update, delete: if false;
+
+      // Pengecualian: admin boleh menulis lewat server yang memakai
+      // Admin SDK, sehingga di sisi rules tetap `false`.
+    }
+
+    /* ─── Cache reklame dari PTSP (opsional, baca saja) ─── */
+    match /reklame_items/{itemId} {
+      allow read: if isActive();
+      allow write: if isAdmin();
+    }
+
+    /* ─── Laporan penindakan ─── */
+    match /laporan_penindakan/{laporanId} {
+      allow read: if isActive();
+      allow create: if punyaIzin('menuLaporan')
+        && request.resource.data.keys().hasAll([
+             'reklameId', 'reklameNama', 'tindakan', 'tanggal'
+           ]);
+      allow update: if punyaIzin('menuLaporan');
+      allow delete: if punyaIzin('aksiHapusLaporan');
+    }
+
+    /* ─── Titik reklame tanpa izin (input lapangan JANAKA) ─── */
+    match /titik_janaka/{titikId} {
+      allow read: if isActive();
+      allow create: if punyaIzin('aksiTambahTitik')
+        && request.resource.data.keys().hasAll(['nama', 'lat', 'lng']);
+      allow update: if punyaIzin('aksiTambahTitik');
+      allow delete: if punyaIzin('aksiTambahTitik');
+    }
+
+    /* ─── Deny-all untuk collections yang tidak dikenal ─── */
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

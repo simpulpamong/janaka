@@ -1,0 +1,48 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "skipLibCheck": true,
+    "allowJs": true,
+    "checkJs": true,
+    /*
+     * `nodenext`, bukan `bundler`.
+     *
+     * `server/` dan `api/` ikut ter-deploy ke Vercel dan dijalankan sebagai
+     * ESM native (`"type": "module"` di package.json). ESM **wajib** menulis
+     * ekstensi file saat impor — `nodenext` memaksa aturan itu dikompilasi,
+     * sedangkan `bundler` membiarkannya lolos ke produksi lalu gagal dengan
+     * `ERR_MODULE_NOT_FOUND` seperti:
+     *
+     *   Cannot find module '/var/task/server/vercelHandler'
+     *   imported from /var/task/api/index.js
+     *
+     * `module: NodeNext` wajib berpasangan dengan `nodenext`; `target` tetap
+     * ES2022 dan hasilnya tetap ESM karena `package.json` bilang
+     * `"type": "module"` — sama seperti yang diploy ke Vercel.
+     */
+    "module": "NodeNext",
+    "moduleResolution": "nodenext",
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "outDir": "./node_modules/.tmp/tsnode",
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "types": ["node"]
+  },
+  "include": [
+    "postcss.config.js",
+    "tailwind.config.js",
+    "vite.config.ts",
+    "vite-plugin-janaka-api.ts",
+    "vite-plugin-pwa-janaka.ts",
+    "api/**/*.ts",
+    "server/**/*.ts",
+    // Aturan username & password yang dipakai server. Harus ikut
+    // terdaftar di sini (proyek composite ~= TS6307 kalau tidak) supaya
+    // klien dan server dijaga oleh satu definisi yang sama.
+    "src/lib/akun.ts"
+  ]
+}

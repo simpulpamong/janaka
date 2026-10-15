@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="id" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+
+    <!-- ── Identitas & favicon ─────────────────────────────── -->
+    <title>JANAKA - Penegakan Perda & Izin Reklame Ponorogo</title>
+    <meta
+      name="description"
+      content="JANAKA (Jaringan Navigasi Penegakan Perda) — sistem Satpol PP Ponorogo untuk pemetaan reklame, laporan lapangan, dan berita acara."
+    />
+    <meta name="author" content="Satpol PP Kabupaten Ponorogo" />
+    <meta name="theme-color" content="#0b3b2e" />
+    <link rel="canonical" href="https://janaka.ponorogo.go.id/" />
+
+    <!--
+      Ikon diambil apa adanya dari `public/assets/`.
+    -->
+    <link rel="icon" href="/assets/favicon.ico" sizes="any" />
+    <link rel="icon" href="/assets/icon-32.png" sizes="32x32" type="image/png" />
+    <link rel="icon" href="/assets/icon-16.png" sizes="16x16" type="image/png" />
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- ── Open Graph / sosial ─────────────────────────────── -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="JANAKA" />
+    <meta property="og:url" content="https://janaka.ponorogo.go.id/" />
+    <meta
+      property="og:title"
+      content="JANAKA — Penegakan Perda & Izin Reklame Ponorogo"
+    />
+    <meta
+      property="og:description"
+      content="Pantau, tertibkan, dan dokumentasikan perizinan reklame dalam satu peta terpadu."
+    />
+    <meta property="og:image" content="https://janaka.ponorogo.go.id/assets/icon-512.png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:image:alt" content="Logo JANAKA" />
+    <meta property="og:locale" content="id_ID" />
+
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:url" content="https://janaka.ponorogo.go.id/" />
+    <meta
+      name="twitter:title"
+      content="JANAKA — Penegakan Perda & Izin Reklame Ponorogo"
+    />
+    <meta
+      name="twitter:description"
+      content="Pantau, tertibkan, dan dokumentasikan perizinan reklame dalam satu peta terpadu."
+    />
+    <meta name="twitter:image" content="https://janaka.ponorogo.go.id/assets/icon-512.png" />
+
+    <!-- ── Robot & arsip ────────────────────────────────────── -->
+    <meta name="robots" content="index, follow" />
+    <meta name="googlebot" content="index, follow, max-image-preview:large" />
+    <!--
+      Aplikasi ini berhalaman tunggal: rute sesungguhnya
+      digambar di peramban, bukan
+      di server. Google menangani JS-rendered SPA, tetapi halaman
+      yang butuh login tidak akan diindeks. `noindex` pada rute
+      dalam aplikasi diatur lewat meta di tiap halaman.
+    -->
+
+    <!-- ── Fonts ───────────────────────────────────────────── -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
+
+    <!--
+      ── Sambungan awal ke layanan luar ──
+
+      Koneksi TLS + DNS ke host yang pasti dibuka memakan 100–300 ms per
+      host. Dengan memulainya lebih dulu (saat <head> masih diurai), tautan
+      Firebase, Cloudinary, dan peta sudah siap ketika aplikasi benar-benar
+      membutuhkannya.
+    -->
+    <link rel="preconnect" href="https://api.cloudinary.com" crossorigin />
+    <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+    <link rel="dns-prefetch" href="https://tile.openstreetmap.org" />
+    <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
+
+    <!-- ── Skema terstruktur ───────────────────────────────── -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "GovernmentOrganization",
+        "name": "Satpol PP Kabupaten Ponorogo",
+        "alternateName": "JANAKA",
+        "description": "Satuan Polisi Pamong Praja Kabupaten Ponorogo — penegakan Perda dan pengawasan perizinan reklame.",
+        "url": "https://janaka.ponorogo.go.id/",
+        "logo": "https://janaka.ponorogo.go.id/assets/icon-512.png",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Ponorogo",
+          "addressRegion": "Jawa Timur",
+          "addressCountry": "ID"
+        }
+      }
+    </script>
+
+    <!--
+      Terapkan tema sebelum React mulai agar tidak ada kedipan
+      (flash of wrong theme) saat halaman dimuat.
+    -->
+    <script>
+      ;(function () {
+        try {
+          if (window.location.pathname === "/login") {
+            var loginBackground = document.createElement("link")
+            loginBackground.rel = "preload"
+            loginBackground.as = "image"
+            loginBackground.href = "/assets/background.webp"
+            loginBackground.fetchPriority = "high"
+            document.head.appendChild(loginBackground)
+          }
+          var stored = localStorage.getItem("janaka-theme")
+          var dark = stored ? stored === "dark" : true
+          document.documentElement.classList.toggle("dark", dark)
+        } catch (e) {
+          document.documentElement.classList.add("dark")
+        }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>
+      <div
+        style="
+          min-height: 100vh;
+          display: grid;
+          place-items: center;
+          padding: 2rem;
+          font-family: system-ui, sans-serif;
+          background: #0b1120;
+          color: #e2e8f0;
+          text-align: center;
+        "
+      >
+        <div>
+          <h1 style="font-size: 1.25rem; margin: 0 0 0.5rem">
+            JANAKA membutuhkan JavaScript
+          </h1>
+          <p style="color: #94a3b8; font-size: 0.875rem; max-width: 26rem">
+            Aplikasi penegakan Perda ini digambar di peramban. Aktifkan
+            JavaScript, lalu muat ulang halaman.
+          </p>
+        </div>
+      </div>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

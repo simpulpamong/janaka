@@ -1,0 +1,172 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "devCommand": "npm run dev",
+  "installCommand": "npm ci --prefer-offline --no-audit --no-fund",
+  "framework": "vite",
+  "regions": [
+    "sin1"
+  ],
+  "functions": {
+    "api/*.ts": {
+      "maxDuration": 30,
+      "excludeFiles": "**/*.{map,d.ts,md,txt,tsbuildinfo}"
+    }
+  },
+  "routes": [
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/api/janaka(/.*)?",
+      "dest": "/api/janaka",
+      "check": true
+    },
+    {
+      "src": "/v1/(.*)",
+      "dest": "/api/ptsp",
+      "check": true
+    },
+    {
+      "src": "/api(/.*)?",
+      "dest": "/api/ptsp",
+      "check": true
+    },
+    {
+      "src": "/v1/(.*)",
+      "dest": "https://sprinter.ponorogo.go.id/v1/$1",
+      "transforms": [
+        {
+          "type": "request.headers",
+          "op": "set",
+          "target": {
+            "key": "x-api-key"
+          },
+          "args": "$PTSP_API_KEY",
+          "env": [
+            "PTSP_API_KEY"
+          ]
+        }
+      ]
+    },
+    {
+      "src": "/api/(?!janaka|health)(.*)",
+      "dest": "https://sprinter.ponorogo.go.id/api/$1",
+      "transforms": [
+        {
+          "type": "request.headers",
+          "op": "set",
+          "target": {
+            "key": "x-api-key"
+          },
+          "args": "$PTSP_API_KEY",
+          "env": [
+            "PTSP_API_KEY"
+          ]
+        }
+      ]
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html",
+      "check": true
+    }
+  ],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "CDN-Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        }
+      ]
+    },
+    {
+      "source": "/v1/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "CDN-Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        }
+      ]
+    },
+    {
+      "source": "/((?!api/).*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "geolocation=(self), camera=(self), microphone=()"
+        }
+      ]
+    }
+  ]
+}

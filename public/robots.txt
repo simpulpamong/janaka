@@ -1,0 +1,19 @@
+# robots.txt JANAKA
+#
+# Aplikasi berhalaman tunggal: rute seperti /mapping digambar di
+# peramban, bukan di server, sehingga tidak ada berkas terpisah yang
+# perlu dilarang. Yang dilarang hanya jalur yang bukan konten:
+#  • /api/*    — data operasional (izin reklame, laporan, foto)
+#  • /sw.js    — service worker, bukan halaman
+#
+# Jalur internal aplikasi tetap diizinkan agar mesin pencari dapat
+# menjalankan JavaScript dan mengindeks shell-nya.
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /sw.js
+Disallow: /assets/
+
+# Peta situs
+Sitemap: https://janaka.ponorogo.go.id/sitemap.xml

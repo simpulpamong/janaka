@@ -1,0 +1,688 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ── Light theme ── */
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 210 40% 94%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 98%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 210 40% 98%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 11%;
+
+    --border: 214 28% 86%;
+    --input: 214 28% 86%;
+    --ring: 221 83% 53%;
+
+    --radius: 0.75rem;
+
+    /* ── Safe area (notch, tepi melengkung, bilah gestur) ──
+     * `index.html` mendeklarasikan `viewport-fit=cover`, jadi iOS menggambar
+     * aplikasi sampai ke tepi layar — termasuk area notch. Navigator tidak
+     * mengetuk area itu: tombol paling kanan bisa terpotong.
+     * Nilainya selalu `0px` di perangkat tanpa notch, jadi tidak ada yang
+     * berubah di desktop.
+     */
+    --poni-kiri: env(safe-area-inset-left, 0px);
+    --poni-kanan: env(safe-area-inset-right, 0px);
+    --poni-bawah: env(safe-area-inset-bottom, 0px);
+    --poni-atas: env(safe-area-inset-top, 0px);
+  }
+
+  .dark {
+    /* ── Dark theme — navy/slate khas instansi penegak perda ── */
+    --background: 222 47% 8%;
+    --foreground: 210 40% 96%;
+
+    --card: 222 45% 11%;
+    --card-foreground: 210 40% 96%;
+
+    --popover: 222 45% 11%;
+    --popover-foreground: 210 40% 96%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 11%;
+
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 96%;
+
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 33% 20%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 63% 51%;
+    --destructive-foreground: 210 40% 98%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 210 40% 98%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 11%;
+
+    --border: 217 33% 20%;
+    --input: 217 33% 22%;
+    --ring: 217 91% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    height: -webkit-fill-available;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+    font-variant-numeric: tabular-nums;
+    overscroll-behavior: none;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
+  }
+
+  @media (pointer: coarse) {
+    body {
+      touch-action: pan-x pan-y;
+    }
+  }
+
+  /* Ring aksesibilitas terpusat. */
+  :focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+  }
+
+  #root {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  @supports (min-height: 100svh) {
+    body,
+    #root {
+      min-height: 100svh;
+    }
+  }
+
+  /* Saat shell aktif, dokumen dikunci: kolom konten jadi satu-satunya area
+   * scroll. Tanpa ini muncul dua scrollbar (dokumen + kolom konten). */
+  html.janaka-shell,
+  html.janaka-shell body,
+  html.janaka-shell #root {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+
+@layer components {
+  /* Gutter untuk isi halaman. Scroll container sendiri tetap selebar viewport
+   * agar scrollbar berada di tepi kanan, bukan di dalam gutter konten. */
+  .poni-konten {
+    padding-top: 1rem;
+    padding-left: max(0.75rem, var(--poni-kiri));
+    padding-right: max(0.75rem, var(--poni-kanan));
+    padding-bottom: max(1rem, var(--poni-bawah));
+  }
+  @media (min-width: 640px) {
+    .poni-konten {
+      padding-top: 1.25rem;
+      padding-left: max(1.25rem, var(--poni-kiri));
+      padding-right: max(1.25rem, var(--poni-kanan));
+      padding-bottom: max(1.5rem, var(--poni-bawah));
+    }
+  }
+  @media (min-width: 1024px) {
+    .poni-konten {
+      padding-top: 1.5rem;
+      padding-left: max(1.5rem, var(--poni-kiri));
+      padding-right: max(1.5rem, var(--poni-kanan));
+      padding-bottom: max(2rem, var(--poni-bawah));
+    }
+  }
+
+  /* Ruang nyaman untuk kontrol topbar, tanpa memindahkan scrollbar. */
+  .poni-header {
+    padding-left: max(0.75rem, var(--poni-kiri));
+    padding-right: max(0.75rem, var(--poni-kanan));
+  }
+  @media (min-width: 640px) {
+    .poni-header {
+      padding-left: max(1.25rem, var(--poni-kiri));
+      padding-right: max(1.25rem, var(--poni-kanan));
+    }
+  }
+  @media (min-width: 1024px) {
+    .poni-header {
+      padding-left: max(1.5rem, var(--poni-kiri));
+      padding-right: max(1.5rem, var(--poni-kanan));
+    }
+  }
+
+  /* Sidebar — tepi kiri & bawah, karena di HP sidebar menumpuk di atas konten. */
+  .poni-sidebar {
+    padding-left: var(--poni-kiri);
+    padding-bottom: var(--poni-bawah);
+  }
+}
+
+@layer base {
+  /* ── Scrollbar tipis, konsisten di seluruh aplikasi ── */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(203 213 225) transparent;
+  }
+  .dark * {
+    scrollbar-color: rgb(71 85 105) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: rgb(203 213 225);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  .dark *::-webkit-scrollbar-thumb {
+    background: rgb(71 85 105);
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: rgb(148 163 184);
+    background-clip: content-box;
+  }
+  .dark *::-webkit-scrollbar-thumb:hover {
+    background: rgb(100 116 139);
+  }
+}
+
+@layer components {
+  /*
+   * Scrollbar tipis, tidak memakan lebar tata letak.
+   *
+   * Sebelumnya kelas ini hanya memasang `scroll-behavior: smooth`. Itu
+   * justru bikin beberapa komponen terasa berat: setiap `scrollTop` yang
+  * di-set lewat JavaScript ikut menganimasikan dan membuat gulir terasa
+  * nyangkut pada komponen yang sudah mengatur perilaku gulir sendiri.
+   *
+   * Karena itu `scroll-behavior` dilepas dari sini, dan tiap pemanggil
+   * yang memang mau animasi memintanya sendiri lewat
+   * `scrollTo({ behavior: "smooth" })`.
+   */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(148 163 184 / 0.5) transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgb(148 163 184 / 0.5);
+    border-radius: 9999px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(100 116 139 / 0.7);
+  }
+
+  /* Kolom konten adalah satu-satunya area gulir utama. */
+  .konten-gulir {
+    min-height: 0;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ *  Animasi
+ * ══════════════════════════════════════════════════════════════════ */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+.animate-pop-in {
+  animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ── Modal ──────────────────────────────────────────────────────────
+ * Animasi ringan, tanpa blur & tanpa layout shift.
+ *
+ * Tiga hal yang membuat modal terasa berat, dan ketiganya dihilangkan:
+ *  1. `backdrop-filter: blur()` pada overlay — browser harus mengambil ulang
+ *     seluruh isi layar di belakang setiap frame.
+ *  2. `scale` pada panel — memaksa perhitungan ulang isi tiap frame.
+ *  3. Perubahan `overflow` pada `<body>` — shell sudah mengunci gulir.
+ *
+ * Semua animasi hanya menyentuh `opacity` dan `transform`, jadi berjalan di
+ * thread compositor tanpa memicu layout maupun paint isi. */
+@keyframes modal-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes modal-panel-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.modal-overlay-enter {
+  animation: modal-overlay-in 0.14s ease-out both;
+}
+.modal-panel-enter {
+  animation: modal-panel-in 0.16s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+.janaka-modal-footer > div {
+  justify-content: center !important;
+  flex-wrap: wrap;
+}
+@media (min-width: 640px) {
+  .janaka-modal-footer > div {
+    justify-content: flex-end !important;
+  }
+}
+
+/* ── Popup melayang (dropdown, kalender, menu baris) ─────────────────
+ * Panel-panel ini dirender lewat `createPortal` ke `document.body` dengan
+ * `position: fixed`, jadi animasi masuknya harus `transform`-only supaya tidak
+ * memicu layout. Dipisah dua keyframe karena arah masuk mengikuti sisi panel:
+ * dari atas saat terbuka ke bawah, dari bawah saat terbuka ke atas. Satu
+ * keyframe untuk keduanya akan terlihat melompat. */
+@keyframes popInBelow {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -6px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+@keyframes popInAbove {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-pop-in-below {
+  animation: popInBelow 0.13s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-pop-in-above {
+  animation: popInAbove 0.13s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .modal-overlay-enter,
+  .modal-panel-enter,
+  .animate-pop-in-below,
+  .animate-pop-in-above {
+    animation-duration: 0.01ms;
+  }
+}
+
+/* ── Placeholder skeleton dengan kilau halus ──────────────────────── */
+@keyframes janaka-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+.janaka-skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: rgb(226 232 240 / 0.7);
+}
+.dark .janaka-skeleton {
+  background-color: rgb(51 65 85 / 0.6);
+}
+.janaka-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    transparent,
+    rgb(148 163 184 / 0.28),
+    transparent
+  );
+  animation: janaka-shimmer 1.6s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .janaka-skeleton::after {
+    display: none;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Ornamen batik
+   ══════════════════════════════════════════════════════════════════
+   Pola parang dari `public/assets/batik-ornament.svg` (warna `#1f4e3c`).
+
+   Dua hal yang membuatnya terlihat "rapi", bukan seperti kotak ditempel:
+
+   1. **Masking** — tepi diberi gradasi transparan supaya pola memudar
+      masuk ke warna dasar. Tanpa ini, batas SVG yang tegas akan terlihat
+      dan halaman terasa ditempeli kotak.
+   2. **Opasitas rendah + `pointer-events: none`** — ornamen jadi latar,
+      tidak pernah mengganggu teks atau tombol.
+
+   Referensi tata letak: presentasi-main (tugurejo), `.batik-ornament--tl`
+   dan `--br`. */
+
+.janaka-batik {
+  position: absolute;
+  pointer-events: none;
+  background-image: url("/assets/batik-ornament.svg");
+  background-repeat: no-repeat;
+  background-size: cover;
+  opacity: 0.1;
+  color: #1f4e3c;
+}
+
+/* Sudut kiri atas — gradasi 135° supaya pola memudar ke arah dalam. */
+.janaka-batik--tl {
+  top: -4%;
+  left: -3%;
+  width: 420px;
+  height: 330px;
+  background-position: left top;
+  -webkit-mask-image: linear-gradient(135deg, #000 0%, #000 28%, transparent 78%);
+  mask-image: linear-gradient(135deg, #000 0%, #000 28%, transparent 78%);
+}
+
+/* Sudut kanan bawah — cermin dari yang kiri atas. */
+.janaka-batik--br {
+  right: -4%;
+  bottom: -6%;
+  width: 400px;
+  height: 310px;
+  background-position: right bottom;
+  opacity: 0.085;
+  -webkit-mask-image: linear-gradient(315deg, #000 0%, #000 28%, transparent 78%);
+  mask-image: linear-gradient(315deg, #000 0%, #000 28%, transparent 78%);
+}
+
+/* Cucian warna lembut di atas pola — hijau batik + emas, sangat transparan. */
+.janaka-batik-wash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 42% 38% at 0% 0%, rgb(31 78 60 / 0.05), transparent 72%),
+    radial-gradient(ellipse 40% 36% at 100% 100%, rgb(184 131 42 / 0.045), transparent 72%);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MODE GELAP — Strategi benar:
+   SVG asli = hijau tua (#1f4e3c) di atas transparan.
+   Di dark (#0B1120), hijau tua TIDAK terlihat (hitam di hitam).
+   Filter brightness hanya bikin jadi hijau kebiruan yang kotor.
+   
+   Solusi: pakai SVG sebagai **MASK** untuk warna KREM/EMAS LEMBUT.
+   - `mask-image: url(...)` + `background: warm gradient`
+   - Atau: `background: warm color` + `mix-blend-mode: screen` pada
+     elemen yang background-image-nya SVG (tapi butuh elemen terpisah).
+   
+   Pendekatan paling bersih: pseudo-element ::before dengan mask.
+   Tapi karena `.janaka-batik` sudah dipakai global, kita override
+   dengan `background: none` + `::before` yang pakai mask.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Reset background SVG di dark — kita pakai ::before sebagai mask. */
+.dark .janaka-batik,
+.dark .janaka-batik--br {
+  background-image: none !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/* Mask krem/emas lembut — terlihat di dark, tidak mencolok. */
+.dark .janaka-batik::before,
+.dark .janaka-batik--br::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Warna krem hangat — terlihat di dark, netral di light. */
+  background: linear-gradient(135deg, rgb(212 184 131 / 0.08), rgb(245 230 200 / 0.04));
+  /* SVG jadi mask: bagian hitam SVG = opaque, transparan = transparent. */
+  -webkit-mask-image: url("/assets/batik-ornament.svg");
+  mask-image: url("/assets/batik-ornament.svg");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: cover;
+  mask-size: cover;
+}
+
+/* Posisi mask mengikuti class posisi. */
+.dark .janaka-batik--tl::before {
+  -webkit-mask-position: left top;
+  mask-position: left top;
+}
+.dark .janaka-batik--br::before {
+  -webkit-mask-position: right bottom;
+  mask-position: right bottom;
+}
+
+/* Cucian dark: sangat tipis, hanya nuansa hangat. */
+.dark .janaka-batik-wash {
+  background:
+    radial-gradient(ellipse 42% 38% at 0% 0%, rgb(212 184 131 / 0.015), transparent 72%),
+    radial-gradient(ellipse 40% 36% at 100% 100%, rgb(31 78 60 / 0.008), transparent 72%);
+}
+
+/* Mobile: mask tetap tipis. */
+@media (max-width: 640px) {
+  .dark .janaka-batik::before,
+  .dark .janaka-batik--br::before {
+    background: linear-gradient(135deg, rgb(212 184 131 / 0.04), rgb(245 230 200 / 0.02));
+  }
+  .dark .janaka-batik-wash {
+    background:
+      radial-gradient(ellipse 42% 38% at 0% 0%, rgb(212 184 131 / 0.008), transparent 72%),
+      radial-gradient(ellipse 40% 36% at 100% 100%, rgb(31 78 60 / 0.004), transparent 72%);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Batik penuh — satu bidang kontinu
+   ══════════════════════════════════════════════════════════════════
+   `batik-ornament.svg` (3428×2136) ternyata **satu ilustrasi utuh**,
+   bukan ubin berulang. Periode pola parangnya ~522 satuan, sedangkan
+   kanvasnya 3428 = 6,6 periode — bukan bilangan bulat. Karena itu
+   `repeat` selalu meleset di tiap batas ubin, dan makin ke bawah
+   garisnya makin "lepas" (terlihat seperti bidang terbagi dua).
+
+   Menjadikannya ubin persegi yang benar-benar menyambung menuntut
+   salah satu ini, dan semuanya tidak layak:
+
+     1. **Pencerminan** — motif parang tidak boleh dicerminkan.
+     2. **Skew konten ~22°** — motifnya jadi miring, bukan motif aslinya.
+     3. **Ubin raksasa 522 × 64.206 satuan** — ukuran terkecil yang
+        benar-benar periodik; mustahil di-render.
+
+   Motif parang dari `batik-ornament.svg` (3428×2136) diulang `repeat`
+   sampai menutup layar. Yang membuatnya terlihat **menyambung** dan bukan
+   seperti tumpukan stiker:
+
+   1. **Ukuran mengikuti rasio asli SVG** — 560×349, bukan 320×320.
+      Memipihkan motif jadi kotak membuat sudut parang tidak berpasangan
+      dengan tetangganya, dan sambungan horizontal/vertikal langsung
+      kelihatan sebagai garis.
+   2. **Tanpa `background-position: center`** — dipinjak ke pojok kiri atas
+      supaya semua ubin mulai dari titik yang sama.
+   3. **Tanpa glow** — tidak ada `radial-gradient` warna di atasnya. Cahaya
+      bulat membuat pola terlihat melayang, bukan menempel ke bidang.
+
+   Opasitas sengaja rendah: motif harus "terasa", bukan "terlihat". */
+.janaka-batik-penuh {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("/assets/batik-ornament.svg");
+  background-repeat: repeat;
+  background-position: 0 0;
+  background-size: 560px 349px;
+  opacity: 0.055;
+}
+
+/*
+ * Mode gelap: SVG dipakai sebagai **mask**, bukan gambar.
+
+ * Alasannya warna. SVG-nya hijau tua `#1f4e3c` — di atas `#0B1120` hasilnya
+ * nyaris tak terlihat, dan memaksanya terlihat butuh filter yang membuat
+ * warnanya jadi hijau kebiruan yang kotor. Dengan mask, motifnya
+ * dicetak ulang memakai warna krem/emas langsung, jadi pilihan warnanya
+ * berdiri sendiri dan tidak bergantung pada warna asli SVG.
+ */
+.dark .janaka-batik-penuh {
+  background-image: none;
+  opacity: 1;
+}
+.dark .janaka-batik-penuh::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: rgb(212 184 131 / 0.04);
+  -webkit-mask-image: url("/assets/batik-ornament.svg");
+  mask-image: url("/assets/batik-ornament.svg");
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+  -webkit-mask-position: 0 0;
+  mask-position: 0 0;
+  -webkit-mask-size: 560px 349px;
+  mask-size: 560px 349px;
+}
+
+@media (max-width: 640px) {
+  .janaka-batik-penuh {
+    background-size: 380px 237px;
+    opacity: 0.04;
+  }
+  .dark .janaka-batik-penuh::before {
+    background: rgb(212 184 131 / 0.03);
+    -webkit-mask-size: 380px 237px;
+    mask-size: 380px 237px;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   (Wadah logo dihapus.)
+   ══════════════════════════════════════════════════════════════════
+   Kepala panel Login sempat membungkus kedua logo — Satpol PP dan
+   JANAKA — dengan kaca 54×54 (`.janaka-wadah-logo`) supaya keduanya
+   terbaca sepadan. Wadah itu sekarang dilepas: dua kartu kecil yang
+   mengambang di atas panel justru mengaburkan hierarki, dan logo
+   instansi lebih tegas tampil apa adanya. Pemisahnya kini
+   `drop-shadow` pada tiap `img` — lihat `src/pages/Login.tsx`. */
+
+/* Leaflet dark-mode tweaks */
+.leaflet-container {
+  background: hsl(var(--muted));
+  font-family: inherit;
+}
+
+/* Cetak — sembunyikan navigasi & tombol, sisakan konten. */
+@media print {
+  .janaka-no-print {
+    display: none !important;
+  }
+  .janaka-print-full {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+}

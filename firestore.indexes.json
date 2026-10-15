@@ -1,0 +1,43 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "laporan_penindakan",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tanggal", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "laporan_penindakan",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "reklameId", "order": "ASCENDING" },
+        { "fieldPath": "tanggal", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "laporan_penindakan",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "dariJANAKA", "order": "ASCENDING" },
+        { "fieldPath": "tanggal", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "titik_janaka",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "titik_janaka",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sudahDieksekusi", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
