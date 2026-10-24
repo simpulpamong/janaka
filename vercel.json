@@ -148,7 +148,7 @@
       ]
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/(.*)",
       "headers": [
         {
           "key": "X-Content-Type-Options",
