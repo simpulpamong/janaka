@@ -207,7 +207,7 @@ export default function Login() {
       </button>
 
       {/* ═══ Kartu: dua panel ═══ */}
-      <div className="relative z-20 flex min-h-[600px] w-full max-w-[1080px] animate-in fade-in zoom-in-95 overflow-hidden rounded-[24px] shadow-[0_32px_80px_rgba(15,23,42,0.35),0_4px_20px_rgba(15,23,42,0.2)] duration-500 max-md:min-h-0 max-md:max-w-[460px] max-md:flex-col max-md:rounded-[20px]">
+      <div className="relative z-20 flex min-h-[560px] w-full max-w-[1000px] animate-in fade-in zoom-in-95 overflow-hidden rounded-[24px] shadow-[0_32px_80px_rgba(15,23,42,0.35),0_4px_20px_rgba(15,23,42,0.2)] duration-500 max-md:min-h-0 max-md:max-w-[440px] max-md:flex-col max-md:rounded-[20px]">
         {/* ── Panel kiri: identitas instansi ── */}
         <div className={`relative flex min-w-0 flex-[1.08] flex-col overflow-hidden max-md:flex-none ${dark ? "bg-[#07111f]" : "bg-[#153a63]"}`}>
           {/*
