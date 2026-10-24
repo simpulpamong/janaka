@@ -30,6 +30,6 @@ const xml = [
   "</urlset>",
 ].join("\n")
 
-const OUT = resolve(import.meta.dirname, "..", "..", "dist", "sitemap.xml")
+const OUT = resolve(import.meta.dirname, "..", "dist", "sitemap.xml")
 writeFileSync(OUT, xml)
 console.log(`Sitemap ditulis ke ${OUT}`)

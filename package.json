@@ -35,7 +35,7 @@
     "test": "npm run test:dasar && npm run test:e2e && npm run test:quality && npm run test:api",
     "verify": "npm run typecheck:all && tsc -b --force && vite build && npm run test:deadcode && npm run test:tools && npm run test:kontrak && npm run test:tata-letak && npm run test:jsx && npm run test:zindex && npm run test:profil && npm run test:aman && npm run test:aset",
     "seed:admin": "tsx --env-file=.env tools/legacy/seed-admin.mts",
-    "gen:sitemap": "tsx tools/legacy/gen-sitemap.mts",
+    "gen:sitemap": "tsx scripts/gen-sitemap.mts",
     "gen:icons": "tsx tools/legacy/gen-icons.mts",
     "postbuild": "npm run gen:sitemap"
   },
