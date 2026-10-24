@@ -16,6 +16,58 @@
   },
   "routes": [
     {
+      "src": "/sw\\.js",
+      "headers": {
+        "Service-Worker-Allowed": "/",
+        "Cache-Control": "public, max-age=0, must-revalidate"
+      },
+      "continue": true
+    },
+    {
+      "src": "/manifest\\.webmanifest",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
+    },
+    {
+      "src": "/assets/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
+    },
+    {
+      "src": "/api/(.*)",
+      "headers": {
+        "Cache-Control": "no-store",
+        "CDN-Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "SAMEORIGIN"
+      },
+      "continue": true
+    },
+    {
+      "src": "/v1/(.*)",
+      "headers": {
+        "Cache-Control": "no-store",
+        "CDN-Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "SAMEORIGIN"
+      },
+      "continue": true
+    },
+    {
+      "src": "/(.*)",
+      "headers": {
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "frame-ancestors 'self' https://satpolpp.ponorogo.go.id",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "geolocation=(self), camera=(self), microphone=()"
+      },
+      "continue": true
+    },
+    {
       "handle": "filesystem"
     },
     {
@@ -71,102 +123,6 @@
       "src": "/(.*)",
       "dest": "/index.html",
       "check": true
-    }
-  ],
-  "headers": [
-    {
-      "source": "/sw.js",
-      "headers": [
-        {
-          "key": "Service-Worker-Allowed",
-          "value": "/"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
-    },
-    {
-      "source": "/manifest.webmanifest",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/assets/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-store"
-        },
-        {
-          "key": "CDN-Cache-Control",
-          "value": "no-store"
-        },
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "SAMEORIGIN"
-        }
-      ]
-    },
-    {
-      "source": "/v1/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-store"
-        },
-        {
-          "key": "CDN-Cache-Control",
-          "value": "no-store"
-        },
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "SAMEORIGIN"
-        }
-      ]
-    },
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "Content-Security-Policy",
-          "value": "frame-ancestors 'self' https://satpolpp.ponorogo.go.id"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
-        },
-        {
-          "key": "Permissions-Policy",
-          "value": "geolocation=(self), camera=(self), microphone=()"
-        }
-      ]
     }
   ]
 }
