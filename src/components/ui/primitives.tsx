@@ -289,7 +289,7 @@ export function ActionButton({
  * ══════════════════════════════════════════════════════════════════ */
 
 const FIELD_BASE =
-  "block w-full px-3.5 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all disabled:opacity-50"
+  "block w-full px-3.5 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-[border-color,box-shadow] duration-150 disabled:opacity-50"
 
 export function Field({
   label,

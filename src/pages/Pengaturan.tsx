@@ -416,6 +416,8 @@ function TabFormatDokumen() {
   const { showToast } = useToast()
   const [cacheAwal] = useState(() => bacaFormatDokumenCache())
   const [cfg, setCfg] = useState<FormatDokumen>(cacheAwal ?? DEFAULT_FORMAT_DOKUMEN)
+  const [pratinjauLogoKiri, setPratinjauLogoKiri] = useState(cfg.kop.logoKiri.url)
+  const [pratinjauLogoKanan, setPratinjauLogoKanan] = useState(cfg.kop.logoKanan.url)
   const [loading, setLoading] = useState(cacheAwal === null)
   const [saving, setSaving] = useState(false)
   const konfigurasiDiubah = useRef(false)
@@ -423,6 +425,15 @@ function TabFormatDokumen() {
   const [mengunggahLogo, setMengunggahLogo] = useState<"kiri" | "kanan" | null>(null)
   const fileLogoKiriRef = useRef<HTMLInputElement>(null)
   const fileLogoKananRef = useRef<HTMLInputElement>(null)
+
+  // Hindari memuat ulang gambar saat URL masih sedang diketik.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setPratinjauLogoKiri(cfg.kop.logoKiri.url)
+      setPratinjauLogoKanan(cfg.kop.logoKanan.url)
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [cfg.kop.logoKiri.url, cfg.kop.logoKanan.url])
 
   useEffect(() => {
     let aktif = true
@@ -581,6 +592,7 @@ function TabFormatDokumen() {
         <div className="grid gap-4 sm:grid-cols-2">
           {(["kiri", "kanan"] as const).map((sisi) => {
             const logo = sisi === "kiri" ? cfg.kop.logoKiri : cfg.kop.logoKanan
+            const urlPratinjau = sisi === "kiri" ? pratinjauLogoKiri : pratinjauLogoKanan
             const idAwal = sisi === "kiri" ? "logo-kiri" : "logo-kanan"
             return (
               <div
@@ -593,9 +605,9 @@ function TabFormatDokumen() {
 
                 {/* Pratinjau — posisi & ukuran bisa dinilai sebelum disimpan. */}
                 <div className="mb-3 flex h-28 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-700">
-                  {logo.url ? (
+                  {urlPratinjau ? (
                     <img
-                      src={logo.url}
+                      src={urlPratinjau}
                       alt={`Pratinjau logo ${sisi}`}
                       className="max-h-full max-w-full object-contain"
                     />

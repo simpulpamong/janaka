@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import {
   Building2,
   Camera,
@@ -48,7 +49,7 @@ import {
   validateImageFile,
   type CloudinaryUploadResult,
 } from "@/lib/cloudinary"
-import { buildNomorBA } from "@/services/laporanService"
+import { buildNomorBASelanjutnya } from "@/lib/nomorBA"
 import { blobKeFile, kompresFoto } from "@/lib/image/kompres"
 import { bukaPeta } from "@/components/common/PetaLihat"
 import { formatBytes, formatTanggalLengkap } from "@/utils"
@@ -83,6 +84,9 @@ interface PendingFoto extends CloudinaryUploadResult {
 type SumberTerpilih = "PTSP" | "JANAKA"
 
 export default function Execution() {
+  const [searchParams] = useSearchParams()
+  const initialReklameId = searchParams.get("reklameId") ?? ""
+  const initialIsJanaka = initialReklameId.startsWith("janaka-")
   const { showToast } = useToast()
 
   const { coords } = useGeolocation()
@@ -96,7 +100,7 @@ export default function Execution() {
     loadReklamaList,
     refreshReklamaList,
   } = useReklamaStore()
-  const { executedIds, simpan, error: laporanError, reload: reloadLaporan } = useLaporan()
+  const { laporan, executedIds, simpan, error: laporanError, reload: reloadLaporan } = useLaporan()
   const { titik, tambah, error: titikError, reload: reloadTitik } = useTitikJanaka()
   const { can } = useAuth()
 
@@ -109,14 +113,13 @@ export default function Execution() {
   const [kameraWebOpen, setKameraWebOpen] = useState(false)
 
   /* ── Form state ── */
-  const [sumber, setSumber] = useState<SumberTerpilih>("PTSP")
+  const [sumber, setSumber] = useState<SumberTerpilih>(initialIsJanaka ? "JANAKA" : "PTSP")
   const [search, setSearch] = useState("")
-  const [selectedPtsp, setSelectedPtsp] = useState("")
-  const [selectedJanaka, setSelectedJanaka] = useState("")
+  const [selectedPtsp, setSelectedPtsp] = useState(initialIsJanaka ? "" : initialReklameId)
+  const [selectedJanaka, setSelectedJanaka] = useState(initialIsJanaka ? initialReklameId.replace(/^janaka-/, "") : "")
   const [pilihTitikTerbuka, setPilihTitikTerbuka] = useState(false)
   const [tanggal, setTanggal] = useState<string>(() => new Date().toISOString().slice(0, 10))
   const [catatan, setCatatan] = useState("")
-  const [nomorSurat, setNomorSurat] = useState(() => buildNomorBA())
   const [fotos, setFotos] = useState<PendingFoto[]>([])
   const [uploading, setUploading] = useState(false)
   const [modalTitikBaru, setModalTitikBaru] = useState(false)
@@ -136,6 +139,18 @@ export default function Execution() {
   const [menyimpanTitik, setMenyimpanTitik] = useState(false)
 
   const debouncedSearch = useDebounce(search, 300)
+
+  // Tautan dari Data Reklame dapat berubah saat halaman laporan masih hidup.
+  // Terapkan ulang titik dari URL supaya petugas tidak perlu memilihnya lagi.
+  useEffect(() => {
+    if (!initialReklameId) return
+    const janaka = initialReklameId.startsWith("janaka-")
+    setSumber(janaka ? "JANAKA" : "PTSP")
+    setSelectedPtsp(janaka ? "" : initialReklameId)
+    setSelectedJanaka(janaka ? initialReklameId.replace(/^janaka-/, "") : "")
+    setPilihTitikTerbuka(false)
+    setSearch("")
+  }, [initialReklameId])
 
   useEffect(() => {
     if (reklameList.length === 0 && lastLoadedAt === null && !loading && !apiError) {
@@ -402,7 +417,6 @@ export default function Execution() {
       // Langsung pindah ke mode JANAKA & pilih titik baru
       setSumber("JANAKA")
       setSelectedJanaka(id)
-      setNomorSurat(buildNomorBA())
 
       showToast(
         tersimpan.length > 1
@@ -431,7 +445,7 @@ export default function Execution() {
   }
 
   const buildInput = () => ({
-    nomorBA: nomorSurat.trim() || buildNomorBA(),
+    nomorBA: buildNomorBASelanjutnya(laporan, tanggal),
     reklameId: terpilih!.id,
     reklameNama: terpilih!.nama,
     reklameAlamat: terpilih!.alamat,
@@ -460,12 +474,13 @@ export default function Execution() {
   const handleSimpan = async () => {
     if (!validate()) return
     try {
-      await simpan(buildInput())
+      const input = buildInput()
+      await simpan(input)
 
       // Backup lokal (offline-friendly)
       try {
         const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]")
-        const next = Array.isArray(existing) ? [...existing, buildInput()] : [buildInput()]
+        const next = Array.isArray(existing) ? [...existing, input] : [input]
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
       } catch {
         /* abaikan */
@@ -476,7 +491,6 @@ export default function Execution() {
       // Reset form, pertahankan sumber & titik agar petugas bisa buat laporan berikutnya
       setCatatan("")
       clearAllFotos()
-      setNomorSurat(buildNomorBA())
 
       setSelectedJanaka("")
     } catch (err) {

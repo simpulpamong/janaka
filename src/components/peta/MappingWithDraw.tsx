@@ -152,11 +152,84 @@ function esc(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
 }
 
+/** Buat kontras area dalam dan luar kabupaten memakai batas GeoJSON lokal. */
+function buatLayerBatasPonorogo(L: any, data: any, map: any) {
+  const features = data?.type === "FeatureCollection"
+    ? data.features
+    : data?.type === "Feature" ? [data] : [{ type: "Feature", geometry: data, properties: {} }]
+  const polygons: any[] = []
+
+  for (const feature of features ?? []) {
+    const geometry = feature?.geometry
+    if (geometry?.type === "Polygon") polygons.push(geometry.coordinates)
+    else if (geometry?.type === "MultiPolygon") polygons.push(...geometry.coordinates)
+  }
+
+  const ringsLuar: [number, number][][] = polygons.flatMap((polygon) => {
+    const ring = polygon?.[0]
+    if (!Array.isArray(ring) || ring.length < 4) return []
+    return [ring.map(([lng, lat]: [number, number]) => [lat, lng] as [number, number])]
+  })
+  if (ringsLuar.length === 0) throw new Error("Batas Kabupaten Ponorogo tidak ditemukan di GeoJSON")
+
+  // Bingkai luas di sekitar peta menjaga area luar tetap teduh saat pengguna
+  // menggeser atau memperbesar peta di sekitar Ponorogo.
+  const bounds = map.getBounds().pad(20)
+  const baratDaya = bounds.getSouthWest()
+  const timurLaut = bounds.getNorthEast()
+  const bingkai: [number, number][] = [
+    [baratDaya.lat, baratDaya.lng],
+    [baratDaya.lat, timurLaut.lng],
+    [timurLaut.lat, timurLaut.lng],
+    [timurLaut.lat, baratDaya.lng],
+    [baratDaya.lat, baratDaya.lng],
+  ]
+
+  const layer = L.featureGroup()
+  layer.addLayer(L.polygon([bingkai, ...ringsLuar], {
+    pane: "janaka-mask-pane",
+    renderer: L.canvas({ padding: 0.5, pane: "janaka-mask-pane" }),
+    stroke: false,
+    fill: true,
+    fillColor: "#0f172a",
+    fillOpacity: 0.2,
+    fillRule: "evenodd",
+    interactive: false,
+  }))
+
+  const renderer = L.canvas({ padding: 0.5, pane: "janaka-boundary-pane" })
+  layer.addLayer(L.geoJSON(data, {
+    pane: "janaka-boundary-pane",
+    renderer,
+    smoothFactor: 2.5,
+    interactive: false,
+    style: { color: "#34d399", weight: 0, fillColor: "#34d399", fillOpacity: 0.1 },
+  }))
+  layer.addLayer(L.geoJSON(data, {
+    pane: "janaka-boundary-pane",
+    renderer,
+    smoothFactor: 2.5,
+    interactive: false,
+    style: { color: "#ffffff", weight: 5, opacity: 0.9, fill: false },
+  }))
+  layer.addLayer(L.geoJSON(data, {
+    pane: "janaka-boundary-pane",
+    renderer,
+    smoothFactor: 2.5,
+    interactive: false,
+    style: { color: "#e11d48", weight: 2.5, opacity: 1, fill: false },
+  }))
+
+  return layer
+}
+
 /* ─── CSS global Leaflet (injected once) ────────────────────────────────── */
 
 const LEAFLET_CSS = `
   /* ── Cap z-index Leaflet agar tidak menutup AkunDropdown (z-93) ── */
   .leaflet-pane         { z-index: 400 !important; }
+  .leaflet-janaka-mask-pane { z-index: 390 !important; }
+  .leaflet-janaka-boundary-pane { z-index: 410 !important; }
   .leaflet-tile-pane    { z-index: 200 !important; }
   .leaflet-overlay-pane { z-index: 400 !important; }
   .leaflet-shadow-pane  { z-index: 500 !important; }
@@ -260,6 +333,8 @@ export function MappingWithDraw({
   const mapRef             = useRef<any>(null)
   const currentBaseRef     = useRef<any>(null)
   const drawnItemsRef      = useRef<any>(null)
+  const markerRendererRef  = useRef<any>(null)
+  const boundaryLayerRef   = useRef<any>(null)
   const drawControlRef     = useRef<any>(null)
   const activeDrawRef      = useRef<any>(null)
   const locateMarkerRef    = useRef<any>(null)
@@ -341,13 +416,29 @@ export function MappingWithDraw({
         zoom: PONOROGO_ZOOM,
         zoomControl: false,
         attributionControl: true,
+        zoomAnimation: true,
+        markerZoomAnimation: true,
+        fadeAnimation: true,
       })
       mapRef.current = map
+
+      const boundaryPane = map.createPane("janaka-boundary-pane")
+      boundaryPane.style.zIndex = "410"
+      boundaryPane.style.pointerEvents = "none"
+      const maskPane = map.createPane("janaka-mask-pane")
+      maskPane.style.zIndex = "405"
+      maskPane.style.pointerEvents = "none"
+      markerRendererRef.current = L.canvas({ padding: 0.5, pane: "markerPane" })
 
       /* Basemap awal */
       const tile = TILE_LAYERS.osm
       currentBaseRef.current = L.tileLayer(tile.url, {
-        attribution: tile.attr, maxZoom: tile.maxZoom, crossOrigin: true,
+        attribution: tile.attr,
+        maxZoom: tile.maxZoom,
+        crossOrigin: true,
+        updateWhenZooming: false,
+        updateWhenIdle: true,
+        keepBuffer: 2,
       }).addTo(map)
 
       /* Skala */
@@ -402,7 +493,7 @@ export function MappingWithDraw({
         setShowMeta(true)
       })
 
-      renderMarkers(map, L, items)
+      renderMarkers(map, L, items, markerRendererRef.current)
 
       setTimeout(() => {
         mapRef.current?.invalidateSize({ animate: false })
@@ -419,9 +510,37 @@ export function MappingWithDraw({
       locateMarkerRef.current = null; locateCircleRef.current = null
       drawnItemsRef.current = null; drawControlRef.current = null
       activeDrawRef.current = null; currentBaseRef.current = null
+      markerRendererRef.current = null; boundaryLayerRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  /* Batas kabupaten dibaca dari GeoJSON lokal dan dirender sekali saja. */
+  useEffect(() => {
+    if (!isMapReady || !mapRef.current || !window.L || boundaryLayerRef.current) return
+    const map = mapRef.current
+    const L = window.L
+    let aktif = true
+
+    void fetch("/assets/ponorogo.geojson", { cache: "force-cache" })
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        return response.json()
+      })
+      .then((dataGeojson) => {
+        if (!aktif || mapRef.current !== map) return
+        boundaryLayerRef.current = buatLayerBatasPonorogo(L, dataGeojson, map).addTo(map)
+      })
+      .catch((error) => console.warn("[Mapping] Gagal memuat batas Ponorogo:", error))
+
+    return () => {
+      aktif = false
+      if (boundaryLayerRef.current && mapRef.current === map) {
+        map.removeLayer(boundaryLayerRef.current)
+        boundaryLayerRef.current = null
+      }
+    }
+  }, [isMapReady])
 
   /* ── Re-render markers saat items berubah ── */
   useEffect(() => {
@@ -432,7 +551,7 @@ export function MappingWithDraw({
         && (!drawnItemsRef.current || !drawnItemsRef.current.hasLayer(layer)))
         map.removeLayer(layer)
     })
-    renderMarkers(map, L, items)
+    renderMarkers(map, L, items, markerRendererRef.current)
   }, [items, isMapReady])
 
   /* ── Ganti basemap ── */
@@ -441,7 +560,12 @@ export function MappingWithDraw({
     const L = window.L; const conf = TILE_LAYERS[id]; if (!conf) return
     if (currentBaseRef.current) mapRef.current.removeLayer(currentBaseRef.current)
     currentBaseRef.current = L.tileLayer(conf.url, {
-      attribution: conf.attr, maxZoom: conf.maxZoom, crossOrigin: true,
+      attribution: conf.attr,
+      maxZoom: conf.maxZoom,
+      crossOrigin: true,
+      updateWhenZooming: false,
+      updateWhenIdle: true,
+      keepBuffer: 2,
     }).addTo(mapRef.current)
     setActiveBase(id)
     setIsLayerOpen(false)
@@ -770,6 +894,20 @@ export function MappingWithDraw({
                 </span>
               </div>
             ))}
+            <div className="flex items-center gap-2 border-t border-slate-100 pt-1 dark:border-slate-700/60">
+              <span className="h-0 w-4 shrink-0 border-t-2 border-rose-600" />
+              <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">
+                Batas Kabupaten Ponorogo
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-sm border border-emerald-500/50 bg-emerald-400/25" />
+              <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">Wilayah dalam Ponorogo</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-sm border border-slate-500/30 bg-slate-700/20" />
+              <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">Wilayah luar Ponorogo</span>
+            </div>
             <div className="flex items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-700/60">
               <span
                 className="h-2.5 w-2.5 flex-shrink-0 rounded-full border border-white/60 dark:border-slate-700/60 opacity-60 shadow-sm"
@@ -874,7 +1012,7 @@ export function MappingWithDraw({
 
 /* ─── Render marker reklame ─────────────────────────────────────────────── */
 
-function renderMarkers(map: any, L: any, items: ReklamePoint[]) {
+function renderMarkers(map: any, L: any, items: ReklamePoint[], renderer?: any) {
   items.forEach(item => {
     const color = item.sudahDieksekusi
       ? "#22c55e"
@@ -887,6 +1025,7 @@ function renderMarkers(map: any, L: any, items: ReklamePoint[]) {
       fillOpacity: item.sudahDieksekusi ? 0.35 : 0.8,
       weight: item.sumber === "JANAKA" ? 3 : 2,
       dashArray: item.sumber === "JANAKA" ? "4 2" : undefined,
+      renderer,
     })
 
     const badge = (text: string, bg: string) =>

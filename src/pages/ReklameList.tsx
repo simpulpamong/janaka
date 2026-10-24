@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import { CheckCircle2, RotateCcw, Search } from "lucide-react"
+import { CheckCircle2, MapPin, Pencil, RotateCcw, Save, Search, Trash2 } from "lucide-react"
 import { AppLayout } from "@/components/layout"
 import { DataStatusBanner } from "@/components/common/DataStatusBanner"
 import { KerangkaDataReklame } from "@/components/common/Kerangka"
@@ -10,11 +10,15 @@ import {
   Card,
   DataTable,
   Field,
+  Input,
   InputWithIcon,
   Pagination,
+  Textarea,
   type Column,
 } from "@/components/ui/primitives"
 import { Dropdown } from "@/components/ui/Dropdown"
+import { ConfirmDialog, Modal } from "@/components/ui/Modal"
+import { MapPickerModal } from "@/components/peta/MapPickerModal"
 import { useDebounce } from "@/hooks/useDebounce"
 import { useToast } from "@/hooks/useToast"
 import { useLaporan, useTitikJanaka } from "@/hooks/useLaporan"
@@ -23,6 +27,8 @@ import { formatTanggalSingkat, hitungStatistik } from "@/utils"
 import { titikJanakaKeReklameList } from "@/utils/titikJanaka"
 import type { ReklameItem } from "@/utils/reklame"
 import type { StatusSK } from "@/utils/format"
+import type { TitikJanaka } from "@/types"
+import type { TitikJanakaInput } from "@/services/laporanService"
 
 const PAGE_SIZE = 10
 
@@ -37,6 +43,17 @@ type FilterStatus = StatusSK | "TANPA_SK" | "SEMUA"
 
 /** Kategori sumber data — memisahkan PTSP dari input JANAKA di satu tabel. */
 type FilterSumber = "SEMUA" | "PTSP" | "JANAKA"
+
+interface DraftTemuan {
+  nama: string
+  alamat: string
+  lat: string
+  lng: string
+  keterangan: string
+  jenisReklame: string
+  panjang: string
+  lebar: string
+}
 
 export default function ReklameList() {
   const navigate = useNavigate()
@@ -53,7 +70,13 @@ export default function ReklameList() {
     refreshReklamaList,
   } = useReklamaStore()
   const { executedIds, laporanCount } = useLaporan()
-  const { titik: titikJanaka } = useTitikJanaka()
+  const { titik: titikJanaka, ubah: ubahTitik, hapus: hapusTitik } = useTitikJanaka()
+  const [temuanHapus, setTemuanHapus] = useState<ReklameItem | null>(null)
+  const [menghapus, setMenghapus] = useState(false)
+  const [temuanEdit, setTemuanEdit] = useState<TitikJanaka | null>(null)
+  const [draftEdit, setDraftEdit] = useState<DraftTemuan | null>(null)
+  const [menyimpanEdit, setMenyimpanEdit] = useState(false)
+  const [petaTemuanTerbuka, setPetaTemuanTerbuka] = useState(false)
 
   const [search, setSearch] = useState(searchParams.get("search") ?? "")
   const [status, setStatus] = useState<FilterStatus>(
@@ -144,6 +167,83 @@ export default function ReklameList() {
   const handleRefresh = () => {
     showToast("Memuat ulang data dari PTSP…", "info")
     void refreshReklamaList()
+  }
+
+  const handleHapusTemuan = async () => {
+    if (!temuanHapus?.dariJANAKA || menghapus) return
+    setMenghapus(true)
+    try {
+      await hapusTitik(temuanHapus.id.replace(/^janaka-/, ""))
+      showToast("Temuan lapangan berhasil dihapus", "success")
+      setTemuanHapus(null)
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Gagal menghapus temuan lapangan", "error")
+    } finally {
+      setMenghapus(false)
+    }
+  }
+
+  const mulaiEditTemuan = (item: ReklameItem) => {
+    const sumber = titikJanaka.find((t) => t.id === item.id.replace(/^janaka-/, ""))
+    if (!sumber) {
+      showToast("Data temuan belum siap. Muat ulang daftar lalu coba lagi.", "error")
+      return
+    }
+    setTemuanEdit(sumber)
+    setDraftEdit({
+      nama: sumber.nama ?? "",
+      alamat: sumber.alamat ?? "",
+      lat: String(sumber.lat ?? ""),
+      lng: String(sumber.lng ?? ""),
+      keterangan: sumber.keterangan ?? "",
+      jenisReklame: sumber.jenisReklame ?? "",
+      panjang: String(sumber.panjang ?? 0),
+      lebar: String(sumber.lebar ?? 0),
+    })
+  }
+
+  const handleSimpanEdit = async () => {
+    if (!temuanEdit || !draftEdit || menyimpanEdit) return
+    const lat = Number(draftEdit.lat)
+    const lng = Number(draftEdit.lng)
+    const panjang = Number(draftEdit.panjang)
+    const lebar = Number(draftEdit.lebar)
+    if (!draftEdit.nama.trim()) {
+      showToast("Nama temuan wajib diisi", "error")
+      return
+    }
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180) {
+      showToast("Koordinat latitude atau longitude tidak valid", "error")
+      return
+    }
+    if (!Number.isFinite(panjang) || panjang < 0 || !Number.isFinite(lebar) || lebar < 0) {
+      showToast("Ukuran reklame harus berupa angka nol atau lebih", "error")
+      return
+    }
+
+    const input: TitikJanakaInput = {
+      nama: draftEdit.nama,
+      alamat: draftEdit.alamat,
+      lat,
+      lng,
+      keterangan: draftEdit.keterangan,
+      jenisReklame: draftEdit.jenisReklame,
+      panjang,
+      lebar,
+      petugas: temuanEdit.petugas || "-",
+    }
+
+    setMenyimpanEdit(true)
+    try {
+      await ubahTitik(temuanEdit.id, input)
+      showToast("Temuan lapangan berhasil diperbarui", "success")
+      setTemuanEdit(null)
+      setDraftEdit(null)
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Gagal menyimpan perubahan temuan", "error")
+    } finally {
+      setMenyimpanEdit(false)
+    }
   }
 
   const kolom = useMemo<Column<ReklameItem>[]>(
@@ -271,19 +371,130 @@ export default function ReklameList() {
       },
       {
         key: "aksi",
-        header: "",
+        header: "Aksi",
         render: (r) => (
-          <ActionButton size="sm" variant="secondary" onClick={() => navigate(`/data-reklame/${r.id}`)}>
-            Detail
-          </ActionButton>
+          <div className="grid w-[152px] grid-cols-[minmax(60px,1fr)_40px_40px] items-center gap-1.5">
+            <ActionButton
+              size="sm"
+              variant="secondary"
+              className={`w-full justify-center ${r.dariJANAKA ? "" : "col-span-3"}`}
+              onClick={() => navigate(`/data-reklame/${r.id}`)}
+            >
+              Detail
+            </ActionButton>
+            {r.dariJANAKA ? (
+              <>
+              <ActionButton
+                size="sm"
+                variant="secondary"
+                className="!h-8 !w-10 !px-0"
+                aria-label={`Edit temuan ${r.namaPemilik}`}
+                title="Edit temuan"
+                onClick={() => mulaiEditTemuan(r)}
+                icon={<Pencil className="h-4 w-4" />}
+              >
+                <span className="sr-only">Edit</span>
+              </ActionButton>
+              <ActionButton
+                size="sm"
+                variant="danger"
+                className="!h-8 !w-10 !px-0"
+                aria-label={`Hapus temuan ${r.namaPemilik}`}
+                title="Hapus temuan"
+                onClick={() => setTemuanHapus(r)}
+                icon={<Trash2 className="h-4 w-4" />}
+              >
+                <span className="sr-only">Hapus</span>
+              </ActionButton>
+              </>
+            ) : null}
+          </div>
         ),
+        className: "w-[152px]",
       },
     ],
-    [navigate, safePage],
+    [navigate, safePage, titikJanaka],
   )
 
   return (
     <AppLayout onRefresh={handleRefresh} refreshing={loading}>
+      <Modal
+        open={!!temuanEdit && !!draftEdit}
+        title="Edit Temuan Lapangan"
+        onClose={() => { if (!menyimpanEdit) { setTemuanEdit(null); setDraftEdit(null) } }}
+        size="lg"
+        footer={
+          <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <ActionButton variant="secondary" disabled={menyimpanEdit} onClick={() => { setTemuanEdit(null); setDraftEdit(null) }}>Batal</ActionButton>
+            <ActionButton loading={menyimpanEdit} onClick={() => void handleSimpanEdit()} icon={<Save className="h-4 w-4" />}>Simpan Perubahan</ActionButton>
+          </div>
+        }
+      >
+        {draftEdit ? <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Nama / Nama Usaha" required htmlFor="edit-temuan-nama" className="sm:col-span-2">
+            <Input id="edit-temuan-nama" value={draftEdit.nama} onChange={(e) => setDraftEdit((d) => d ? { ...d, nama: e.target.value } : d)} placeholder="Nama pemilik atau usaha" />
+          </Field>
+          <Field label="Alamat" htmlFor="edit-temuan-alamat" className="sm:col-span-2">
+            <Input id="edit-temuan-alamat" value={draftEdit.alamat} onChange={(e) => setDraftEdit((d) => d ? { ...d, alamat: e.target.value } : d)} placeholder="Alamat lokasi temuan" />
+          </Field>
+          <div className="space-y-3 sm:col-span-2">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Latitude" required htmlFor="edit-temuan-lat">
+                <Input id="edit-temuan-lat" type="number" step="any" value={draftEdit.lat} onChange={(e) => setDraftEdit((d) => d ? { ...d, lat: e.target.value } : d)} />
+              </Field>
+              <Field label="Longitude" required htmlFor="edit-temuan-lng">
+                <Input id="edit-temuan-lng" type="number" step="any" value={draftEdit.lng} onChange={(e) => setDraftEdit((d) => d ? { ...d, lng: e.target.value } : d)} />
+              </Field>
+            </div>
+            <ActionButton
+              variant="secondary"
+              onClick={() => setPetaTemuanTerbuka(true)}
+              icon={<MapPin className="h-4 w-4" />}
+            >
+              Pilih Titik di Peta
+            </ActionButton>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Klik lokasi pada peta atau geser pin. Koordinat akan terisi otomatis.
+            </p>
+          </div>
+          <Field label="Jenis Reklame" htmlFor="edit-temuan-jenis">
+            <Input id="edit-temuan-jenis" value={draftEdit.jenisReklame} onChange={(e) => setDraftEdit((d) => d ? { ...d, jenisReklame: e.target.value } : d)} placeholder="Contoh: Billboard" />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Panjang (cm)" htmlFor="edit-temuan-panjang">
+              <Input id="edit-temuan-panjang" type="number" min="0" step="any" value={draftEdit.panjang} onChange={(e) => setDraftEdit((d) => d ? { ...d, panjang: e.target.value } : d)} />
+            </Field>
+            <Field label="Lebar (cm)" htmlFor="edit-temuan-lebar">
+              <Input id="edit-temuan-lebar" type="number" min="0" step="any" value={draftEdit.lebar} onChange={(e) => setDraftEdit((d) => d ? { ...d, lebar: e.target.value } : d)} />
+            </Field>
+          </div>
+          <Field label="Keterangan Temuan" htmlFor="edit-temuan-keterangan" className="sm:col-span-2">
+            <Textarea id="edit-temuan-keterangan" value={draftEdit.keterangan} onChange={(e) => setDraftEdit((d) => d ? { ...d, keterangan: e.target.value } : d)} placeholder="Catatan kondisi atau temuan lapangan" />
+          </Field>
+        </div> : null}
+      </Modal>
+      <MapPickerModal
+        open={petaTemuanTerbuka && !!draftEdit}
+        onClose={() => setPetaTemuanTerbuka(false)}
+        initialLat={draftEdit ? Number(draftEdit.lat) : undefined}
+        initialLng={draftEdit ? Number(draftEdit.lng) : undefined}
+        onSelect={(pos) => setDraftEdit((draft) => draft ? {
+          ...draft,
+          lat: String(pos.lat),
+          lng: String(pos.lng),
+        } : draft)}
+        title="Pilih Lokasi Temuan"
+      />
+      <ConfirmDialog
+        open={!!temuanHapus}
+        tone="danger"
+        title="Hapus Temuan Lapangan?"
+        message={<>Temuan <span className="font-semibold">{temuanHapus?.namaPemilik}</span> akan dihapus permanen dan tidak dapat dikembalikan.</>}
+        confirmLabel="Ya, Hapus Temuan"
+        loading={menghapus}
+        onConfirm={() => void handleHapusTemuan()}
+        onCancel={() => { if (!menghapus) setTemuanHapus(null) }}
+      />
       <div className="space-y-5">
         {loading && reklameList.length === 0 ? <KerangkaDataReklame /> : null}
 

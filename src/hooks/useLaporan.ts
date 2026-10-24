@@ -9,6 +9,7 @@ import {
   createTitikJanaka,
   deleteLaporan,
   deleteTitikJanaka,
+  updateTitikJanaka,
   markTitikDieksekusi,
   type TitikJanakaInput,
   bacaCacheLaporan,
@@ -111,6 +112,7 @@ export interface UseTitikJanakaResult {
   error: string | null
   reload: () => void
   tambah: (input: TitikJanakaInput) => Promise<string>
+  ubah: (id: string, input: TitikJanakaInput) => Promise<void>
   hapus: (id: string) => Promise<void>
 }
 
@@ -154,9 +156,13 @@ export function useTitikJanaka(): UseTitikJanakaResult {
     return createTitikJanaka(input)
   }, [])
 
+  const ubah = useCallback(async (id: string, input: TitikJanakaInput) => {
+    await updateTitikJanaka(id, input)
+  }, [])
+
   const hapus = useCallback(async (id: string) => {
     await deleteTitikJanaka(id)
   }, [])
 
-  return { titik, loading, error, reload, tambah, hapus }
+  return { titik, loading, error, reload, tambah, ubah, hapus }
 }

@@ -19,6 +19,9 @@ import type {
   LaporanPenindakan,
   TitikJanaka,
 } from "@/types"
+import { buildNomorBA } from "@/lib/nomorBA"
+
+export { buildNomorBA } from "@/lib/nomorBA"
 
 /* ══════════════════════════════════════════════════════════════════
  *  Cache lokal (localStorage)
@@ -93,14 +96,6 @@ export function bacaCacheTitik(): TitikJanaka[] | null {
 
 export const COL_LAPORAN = "laporan_penindakan"
 export const COL_TITIK_JANAKA = "titik_janaka"
-
-/** Nomor berita acara berikutnya: 001/BA/JANAKA/2026 */
-export function buildNomorBA(tanggal = new Date()): string {
-  const tahun = tanggal.getFullYear()
-  const d = new Date(tanggal)
-  d.setHours(0, 0, 0, 0)
-  return `000/BA/JANAKA/${tahun}`
-}
 
 /** Tanggal Indonesia ringkas: 2026-10-12 */
 function hariIni(): string {
@@ -278,6 +273,24 @@ export async function createTitikJanaka(
     updatedAt: now,
   })
   return ref.id
+}
+
+/** Ubah informasi temuan lapangan tanpa mengubah riwayat penindakannya. */
+export async function updateTitikJanaka(
+  id: string,
+  input: TitikJanakaInput,
+): Promise<void> {
+  await updateDoc(doc(db, COL_TITIK_JANAKA, id), {
+    nama: input.nama.trim() || "Tanpa Nama",
+    alamat: input.alamat.trim() || "-",
+    lat: input.lat,
+    lng: input.lng,
+    keterangan: input.keterangan.trim(),
+    jenisReklame: input.jenisReklame.trim() || "Tidak Disebutkan",
+    panjang: input.panjang || 0,
+    lebar: input.lebar || 0,
+    updatedAt: new Date().toISOString(),
+  })
 }
 
 /** Realtime listener titik JANAKA. */

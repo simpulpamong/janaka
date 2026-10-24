@@ -1,4 +1,4 @@
-import { useParams, useRouteError, isRouteErrorResponse, Link, Navigate } from "react-router-dom"
+import { useLocation, useParams, useRouteError, isRouteErrorResponse, Link, Navigate } from "react-router-dom"
 import { AlertTriangle, Home, RotateCcw } from "lucide-react"
 import type { RouteObject } from "react-router-dom"
 import Login from "@/pages/Login"
@@ -103,6 +103,12 @@ function RedirectDetailReklame() {
   return <Navigate to={id ? `/data-reklame/${id}` : "/data-reklame"} replace />
 }
 
+/** Pertahankan ID titik saat tautan lama `/execution?reklameId=...` dialihkan. */
+function RedirectExecution() {
+  const location = useLocation()
+  return <Navigate to={`/laporan${location.search}${location.hash}`} replace />
+}
+
 export const routes: RouteObject[] = [
   /* Publik */
   {
@@ -191,7 +197,7 @@ export const routes: RouteObject[] = [
     element: <RedirectDetailReklame />,
     errorElement: ERR,
   },
-  { path: "/execution", element: <Navigate to="/laporan" replace />, errorElement: ERR },
+  { path: "/execution", element: <RedirectExecution />, errorElement: ERR },
   { path: "/riwayat", element: <Navigate to="/rekap" replace />, errorElement: ERR },
 
   { path: "*", element: <NotFound />, errorElement: ERR },

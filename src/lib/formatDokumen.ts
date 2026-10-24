@@ -82,7 +82,7 @@ export const DEFAULT_FORMAT_DOKUMEN: FormatDokumen = {
   penandatangan: {
     nama: "",
     nip: "",
-    jabatan: "Kasat Satpol PP",
+    jabatan: "a.n. Kepala Satuan Polisi Pamong Praja Kabupaten Ponorogo Kepala Bidang Penegakan Peraturan Daerah",
   },
   judulBA: "BERITA ACARA PENINDAKAN LAPANGAN",
   judulRekap: "REKAPITULASI RIWAYAT PENINDAKAN REKLAME",
@@ -152,6 +152,9 @@ export function gabungDenganDefault(data: Partial<FormatDokumen>): FormatDokumen
       ? { url: kopLama.logoUrl, posisi: "kanan" as const, lebarMm: kopLama.lebarLogoMm ?? 20 }
       : LOGO_KOSONG)
 
+  const jabatanTersimpan = data.penandatangan?.jabatan
+  const jabatanDefaultLama = "Kasat Satpol PP"
+
   return {
     kop: {
       ...DEFAULT_FORMAT_DOKUMEN.kop,
@@ -162,6 +165,9 @@ export function gabungDenganDefault(data: Partial<FormatDokumen>): FormatDokumen
     penandatangan: {
       ...DEFAULT_FORMAT_DOKUMEN.penandatangan,
       ...(data.penandatangan ?? {}),
+      ...(jabatanTersimpan === jabatanDefaultLama
+        ? { jabatan: DEFAULT_FORMAT_DOKUMEN.penandatangan.jabatan }
+        : {}),
     },
     judulBA: data.judulBA || DEFAULT_FORMAT_DOKUMEN.judulBA,
     judulRekap: data.judulRekap || DEFAULT_FORMAT_DOKUMEN.judulRekap,
@@ -225,8 +231,8 @@ export function validasiFormatDokumen(cfg: Partial<FormatDokumen>): string[] {
   if (cfg.penandatangan?.nip && cfg.penandatangan.nip.length > 24) {
     errors.push("NIP maksimal 24 karakter.")
   }
-  if (cfg.penandatangan?.jabatan && cfg.penandatangan.jabatan.length > 60) {
-    errors.push("Jabatan maksimal 60 karakter.")
+  if (cfg.penandatangan?.jabatan && cfg.penandatangan.jabatan.length > 120) {
+    errors.push("Jabatan maksimal 120 karakter.")
   }
 
   if (cfg.judulBA && cfg.judulBA.length > 90) errors.push("Judul BA maksimal 90 karakter.")

@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf"
 import type { LaporanPenindakan } from "@/types"
 import { formatTanggalLengkap } from "@/utils/format"
+import { formatNomorBA } from "@/lib/nomorBA"
 import {
   type FormatDokumen,
   type LogoKop,
@@ -88,6 +89,66 @@ async function muatFotoBukti(
     }
   }
 
+  return hasil
+}
+
+/** Ambil thumbnail persegi foto pertama tiap laporan, dengan batas koneksi. */
+async function muatThumbnailRekap(laporan: LaporanPenindakan[]): Promise<(string | null)[]> {
+  const hasil: (string | null)[] = Array(laporan.length).fill(null)
+  let cursor = 0
+
+  const muatSatu = async (index: number) => {
+    const foto = laporan[index]?.fotoBukti?.[0]
+    if (!foto?.url) return
+    try {
+      const response = await fetch(foto.url, { mode: "cors" })
+      if (!response.ok) return
+      const blob = await response.blob()
+      const bitmap = await createImageBitmap(blob)
+      const ukuran = 96
+      const canvas = document.createElement("canvas")
+      canvas.width = ukuran
+      canvas.height = ukuran
+      const context = canvas.getContext("2d")
+      if (!context) {
+        bitmap.close()
+        return
+      }
+
+      const skala = Math.max(ukuran / bitmap.width, ukuran / bitmap.height)
+      const lebarSumber = ukuran / skala
+      const tinggiSumber = ukuran / skala
+      const xSumber = (bitmap.width - lebarSumber) / 2
+      const ySumber = (bitmap.height - tinggiSumber) / 2
+      const radius = 13
+      context.beginPath()
+      context.moveTo(radius, 0)
+      context.lineTo(ukuran - radius, 0)
+      context.arcTo(ukuran, 0, ukuran, radius, radius)
+      context.lineTo(ukuran, ukuran - radius)
+      context.arcTo(ukuran, ukuran, ukuran - radius, ukuran, radius)
+      context.lineTo(radius, ukuran)
+      context.arcTo(0, ukuran, 0, ukuran - radius, radius)
+      context.lineTo(0, radius)
+      context.arcTo(0, 0, radius, 0, radius)
+      context.closePath()
+      context.clip()
+      context.drawImage(bitmap, xSumber, ySumber, lebarSumber, tinggiSumber, 0, 0, ukuran, ukuran)
+      bitmap.close()
+      hasil[index] = canvas.toDataURL("image/png")
+    } catch {
+      /* Thumbnail gagal dimuat: kolom tetap menampilkan jumlah fotonya. */
+    }
+  }
+
+  const pekerja = async () => {
+    while (cursor < laporan.length) {
+      const index = cursor++
+      await muatSatu(index)
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(6, laporan.length) }, pekerja))
   return hasil
 }
 
@@ -191,7 +252,6 @@ function barisLabel(
   y: number,
   label: string,
   nilai: string,
-  lebarLabel = 38,
 ): number {
   const x = MARGIN
 
@@ -200,12 +260,23 @@ function barisLabel(
   doc.setTextColor(...HITAM)
   doc.text(label, x, y)
 
-  const xNilai = x + lebarLabel
+  const xNilai = x + 42
   doc.setFont(FONT_DASAR, "normal")
-  doc.text(":", x + lebarLabel - 5, y)
-  doc.text(nilai, xNilai, y, { maxWidth: 210 - MARGIN - xNilai })
+  doc.text(":", x + 36, y)
+  const barisNilai = doc.splitTextToSize(nilai || "-", 210 - MARGIN - xNilai) as string[]
+  doc.text(barisNilai, xNilai, y)
 
-  return y + 6.5
+  return y + 6.5 * barisNilai.length
+}
+
+/** Ringkasan rekap dengan titik dua di kolom yang sama. */
+function barisRingkasan(doc: jsPDF, y: number, label: string, nilai: string, pageWidth: number): void {
+  const x = pageWidth / 2 - 50
+  doc.setFont(FONT_DASAR, "normal")
+  doc.setFontSize(UKURAN_DASAR)
+  doc.text(label, x, y)
+  doc.text(":", x + 39, y)
+  doc.text(nilai, x + 45, y)
 }
 
 /**
@@ -225,16 +296,19 @@ function gambarTandaTangan(
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
 
+  const xKanan = pageWidth - MARGIN
+  const lebarBlok = 70
+  const xBlok = xKanan - lebarBlok
+  doc.setFont(FONT_DASAR, "normal")
+  doc.setFontSize(UKURAN_DASAR)
+  const barisJabatan = doc.splitTextToSize(p.jabatan || "Penandatangan", lebarBlok) as string[]
+
   /* Berpindah halaman kalau blok tanda tangan tidak muat. */
-  const tinggiBlok = 34
+  const tinggiBlok = 40 + barisJabatan.length * 5
   if (y + tinggiBlok > pageHeight - MARGIN) {
     doc.addPage()
     y = MARGIN
   }
-
-  const xKanan = pageWidth - MARGIN
-  const lebarBlok = 70
-  const xBlok = xKanan - lebarBlok
 
   y += 6
 
@@ -246,8 +320,8 @@ function gambarTandaTangan(
   y += 7
 
   /* Jabatan */
-  doc.text(p.jabatan || "Penandatangan", xBlok, y, { align: "left" })
-  y += 26
+  doc.text(barisJabatan, xBlok, y, { align: "left", lineHeightFactor: 1.15 })
+  y += Math.max(26, barisJabatan.length * 5 + 12)
 
   /* Garis tanda tangan */
   doc.setDrawColor(...HITAM)
@@ -296,7 +370,7 @@ export async function createBeritaAcaraPdf({
 
   doc.setFont(FONT_DASAR, "normal")
   doc.setFontSize(UKURAN_DASAR)
-  doc.text(`Nomor : ${nomorSurat || laporan.nomorBA || "-"}`, pageWidth / 2, y + 2, {
+  doc.text(`Nomor: ${formatNomorBA(nomorSurat || laporan.nomorBA, laporan.tanggal)}`, pageWidth / 2, y + 2, {
     align: "center",
   })
 
@@ -333,7 +407,6 @@ export async function createBeritaAcaraPdf({
     y,
     "Tanggal",
     `${formatTanggalLengkap(laporan.tanggal)}${laporan.waktu ? `, ${laporan.waktu}` : ""}`,
-    30,
   )
 
   y += 4
@@ -461,12 +534,13 @@ export interface RekapInput {
 }
 
 /** Rekapitulasi riwayat penindakan — landscape, satu tabel. */
-export function createRekapPdf({
+export async function createRekapPdf({
   laporan,
   judul,
   periode,
   format,
-}: RekapInput): jsPDF {
+}: RekapInput): Promise<jsPDF> {
+  const thumbnails = await muatThumbnailRekap(laporan)
   const fmt = ambilFormat(format)
   const cfg = fmt
 
@@ -488,9 +562,9 @@ export function createRekapPdf({
 
   doc.setFont(FONT_DASAR, "normal")
   doc.setFontSize(UKURAN_DASAR)
-  doc.text(`Periode : ${periode}`, pageWidth / 2, y, { align: "center" })
+  barisRingkasan(doc, y, "Periode", periode, pageWidth)
   y += 6
-  doc.text(`Jumlah Laporan : ${laporan.length}`, pageWidth / 2, y, { align: "center" })
+  barisRingkasan(doc, y, "Jumlah Laporan", String(laporan.length), pageWidth)
   y += 10
 
   /* ── Tabel ──
@@ -500,40 +574,42 @@ export function createRekapPdf({
    */
   const baris = laporan.map((l, i) => [
     String(i + 1),
+    formatNomorBA(l.nomorBA, l.tanggal),
     formatTanggalLengkap(l.tanggal),
     l.reklameNama || "-",
     `${Number(l.lat).toFixed(5)}, ${Number(l.lng).toFixed(5)}`,
-    (l.catatanPetugas || "-").replace(/\s+/g, " ").slice(0, 90),
+    (l.catatanPetugas || "-").replace(/\s+/g, " "),
     l.dariJANAKA ? "Temuan Lapangan" : "PTSP",
     String(l.fotoBukti?.length ?? 0),
   ])
 
   const lebarTotal = pageWidth - MARGIN * 2
-  const lebarKolom = [12, 32, 62, 38, 90, 30, 14]
+  const lebarKolom = [8, 45, 30, 46, 34, 62, 24, 12]
   const skala = lebarTotal / lebarKolom.reduce((a, b) => a + b, 0)
 
   let yTabel = y
 
-  /* Header */
-  doc.setFillColor(240, 240, 240)
-  doc.rect(MARGIN, yTabel, lebarTotal, 9, "F")
-  doc.setDrawColor(...HITAM)
-  doc.setLineWidth(0.3)
-  doc.rect(MARGIN, yTabel, lebarTotal, 9)
-
-  doc.setFont(FONT_DASAR, "bold")
-  doc.setFontSize(9)
-  const header = ["No", "Tanggal", "Titik Reklame", "Koordinat", "Keterangan", "Sumber", "Foto"]
-  let xKolom = MARGIN
-  header.forEach((h, i) => {
-    const w = lebarKolom[i]! * skala
-    doc.text(h, xKolom + w / 2, yTabel + 6, { align: "center" })
-    if (i > 0) {
-      doc.setLineWidth(0.2)
-      doc.line(xKolom, yTabel, xKolom, yTabel + 9)
-    }
-    xKolom += w
-  })
+  const header = ["No", "Nomor BA", "Tanggal", "Titik Reklame", "Koordinat", "Keterangan", "Sumber", "Foto"]
+  const gambarHeaderTabel = (top: number) => {
+    doc.setFillColor(240, 240, 240)
+    doc.rect(MARGIN, top, lebarTotal, 9, "F")
+    doc.setDrawColor(...HITAM)
+    doc.setLineWidth(0.3)
+    doc.rect(MARGIN, top, lebarTotal, 9)
+    doc.setFont(FONT_DASAR, "bold")
+    doc.setFontSize(9)
+    let xKolom = MARGIN
+    header.forEach((h, i) => {
+      const w = lebarKolom[i]! * skala
+      doc.text(h, xKolom + w / 2, top + 6, { align: "center" })
+      if (i > 0) {
+        doc.setLineWidth(0.2)
+        doc.line(xKolom, top, xKolom, top + 9)
+      }
+      xKolom += w
+    })
+  }
+  gambarHeaderTabel(yTabel)
 
   yTabel += 9
 
@@ -542,56 +618,110 @@ export function createRekapPdf({
   doc.setFontSize(9)
 
   for (let r = 0; r < baris.length; r++) {
-    const tinggiBaris = 12
-    if (yTabel + tinggiBaris > pageHeight - MARGIN - 40) {
-      doc.addPage()
-      yTabel = MARGIN
-    }
-
     const data = baris[r]!
+    doc.setFont(FONT_DASAR, "normal")
+    doc.setFontSize(9)
+    const selTeks = data.slice(0, -1).map((nilai, c) => {
+      const lebar = lebarKolom[c]! * skala - 4
+      return doc.splitTextToSize(String(nilai ?? ""), lebar) as string[]
+    })
+    const jumlahBarisTeks = Math.max(1, ...selTeks.map((barisSel) => barisSel.length))
+    let awalBarisTeks = 0
+    let bagianPertama = true
 
-    /* Latar selang-seling tipis supaya baris panjang mudah diikuti. */
-    if (r % 2 === 1) {
-      doc.setFillColor(250, 250, 250)
-      doc.rect(MARGIN, yTabel, lebarTotal, tinggiBaris, "F")
-    }
-
-    doc.setDrawColor(...HITAM)
-    doc.setLineWidth(0.2)
-    doc.rect(MARGIN, yTabel, lebarTotal, tinggiBaris)
-
-    let x = MARGIN
-    for (let c = 0; c < data.length; c++) {
-      const w = lebarKolom[c]! * skala
-      const nilai = data[c] ?? ""
-
-      if (c > 0) {
-        doc.setLineWidth(0.2)
-        doc.line(x, yTabel, x, yTabel + tinggiBaris)
+    while (awalBarisTeks < jumlahBarisTeks) {
+      let batasBawah = pageHeight - MARGIN - 40
+      if (yTabel + 16 > batasBawah) {
+        doc.addPage()
+        yTabel = MARGIN
+        gambarHeaderTabel(yTabel)
+        yTabel += 9
+        batasBawah = pageHeight - MARGIN - 12
       }
 
-      const rata = c === 0 || c === 6 ? "center" : "left"
-      const xTeks = rata === "center" ? x + w / 2 : x + 2
-      const maxW = rata === "center" ? w - 4 : w - 4
+      const ruang = batasBawah - yTabel
+      const kapasitasBaris = Math.max(1, Math.floor((ruang - 6) / 4))
+      const banyakBaris = Math.min(jumlahBarisTeks - awalBarisTeks, kapasitasBaris)
+      const tinggiBaris = Math.max(16, 6 + banyakBaris * 4)
 
-      /* Potong nilai supaya tidak keluar sel. */
-      let teks = nilai
-      const batas = Math.floor(maxW / 1.6)
-      if (teks.length > batas) teks = `${teks.slice(0, batas - 1)}…`
+      if (r % 2 === 1) {
+        doc.setFillColor(250, 250, 250)
+        doc.rect(MARGIN, yTabel, lebarTotal, tinggiBaris, "F")
+      }
+      doc.setDrawColor(...HITAM)
+      doc.setLineWidth(0.2)
+      doc.rect(MARGIN, yTabel, lebarTotal, tinggiBaris)
 
-      doc.text(teks, xTeks, yTabel + tinggiBaris / 2 + 1.2, {
-        align: rata,
-        maxWidth: maxW,
-      })
+      let x = MARGIN
+      for (let c = 0; c < data.length; c++) {
+        const w = lebarKolom[c]! * skala
+        if (c > 0) doc.line(x, yTabel, x, yTabel + tinggiBaris)
 
-      x += w
+        if (c === data.length - 1) {
+          if (bagianPertama) {
+            const thumbnail = thumbnails[r]
+            const jumlahFoto = Number(data[c]) || 0
+            const alas = 10
+            const ukuranThumb = 8.6
+            const xAlas = x + (w - alas) / 2
+            const yAlas = yTabel + (tinggiBaris - alas) / 2
+            doc.setFillColor(255, 255, 255)
+            doc.setDrawColor(148, 163, 184)
+            doc.setLineWidth(0.35)
+            doc.roundedRect(xAlas, yAlas, alas, alas, 1.2, 1.2, "FD")
+            if (thumbnail) {
+              const inset = (alas - ukuranThumb) / 2
+              doc.addImage(thumbnail, "PNG", xAlas + inset, yAlas + inset, ukuranThumb, ukuranThumb, undefined, "FAST")
+              doc.setDrawColor(100, 116, 139)
+              doc.setLineWidth(0.25)
+              doc.roundedRect(xAlas + inset, yAlas + inset, ukuranThumb, ukuranThumb, 1, 1, "S")
+            } else if (jumlahFoto === 0) {
+              doc.setFont(FONT_DASAR, "normal")
+              doc.setFontSize(8)
+              doc.setTextColor(120, 120, 120)
+              doc.text("—", x + w / 2, yTabel + tinggiBaris / 2 + 1, { align: "center" })
+            }
+            if (jumlahFoto > 1) {
+              const badgeW = 5.5
+              const badgeH = 4.5
+              doc.setFillColor(15, 23, 42)
+              doc.roundedRect(x + w - badgeW - 0.4, yTabel + 0.4, badgeW, badgeH, 1.2, 1.2, "F")
+              doc.setFont(FONT_DASAR, "bold")
+              doc.setFontSize(6.5)
+              doc.setTextColor(255, 255, 255)
+              doc.text(String(jumlahFoto), x + w - badgeW / 2 - 0.4, yTabel + 3.5, { align: "center" })
+            }
+            doc.setTextColor(...HITAM)
+          }
+          x += w
+          continue
+        }
+
+        const barisSel = selTeks[c] ?? []
+        const bagian = barisSel.slice(awalBarisTeks, awalBarisTeks + banyakBaris)
+        if (bagian.length > 0) {
+          const rata = c === 0 ? "center" : "left"
+          const xTeks = rata === "center" ? x + w / 2 : x + 2
+          const yTeks = yTabel + Math.max(4, (tinggiBaris - (bagian.length - 1) * 4) / 2 + 2)
+          doc.setFont(FONT_DASAR, "normal")
+          doc.setFontSize(9)
+          doc.text(bagian, xTeks, yTeks, { align: rata, lineHeightFactor: 1.1 })
+        }
+        x += w
+      }
+
+      awalBarisTeks += banyakBaris
+      bagianPertama = false
+      yTabel += tinggiBaris
     }
-
-    yTabel += tinggiBaris
   }
 
   /* ── Tanda tangan ── */
   yTabel += 10
+  if (yTabel + 45 > pageHeight - MARGIN) {
+    doc.addPage()
+    yTabel = MARGIN
+  }
   gambarTandaTangan(doc, yTabel, fmt, new Date().toISOString().slice(0, 10))
 
   return doc

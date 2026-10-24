@@ -10,6 +10,7 @@ import {
 import DatePicker from "@/components/ui/DatePicker"
 import { useToast } from "@/hooks/useToast"
 import { updateLaporan } from "@/services/laporanService"
+import { formatNomorBA } from "@/lib/nomorBA"
 import {
   FOLDER_UPLOAD,
   uploadToCloudinary,
@@ -86,7 +87,7 @@ export function EditLaporanModal({
   /* Isi form setiap kali modal dibuka untuk laporan yang berbeda. */
   useEffect(() => {
     if (!open || !laporan) return
-    setNomorBA(laporan.nomorBA || "")
+    setNomorBA(formatNomorBA(laporan.nomorBA, laporan.tanggal))
     setTanggal(laporan.tanggal || "")
     setWaktu(laporan.waktu || "")
     setNama(laporan.reklameNama || "")
@@ -195,7 +196,7 @@ export function EditLaporanModal({
       ]
 
       await updateLaporan(laporan.id, {
-        nomorBA: nomorBA.trim() || laporan.nomorBA,
+        nomorBA: formatNomorBA(nomorBA, tanggal),
         reklameNama: nama.trim(),
         reklameAlamat: alamat.trim(),
         lat: Number(lat),
@@ -253,7 +254,7 @@ export function EditLaporanModal({
               id="edit-nomor"
               value={nomorBA}
               onChange={(e) => setNomorBA(e.target.value)}
-              placeholder="000/BA/JANAKA/2026"
+              placeholder="BA/001/JNK/01/01/2026"
               disabled={menyimpan}
             />
           </Field>

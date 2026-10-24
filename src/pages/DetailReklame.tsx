@@ -17,6 +17,7 @@ import { urlDokumenProksi } from "@/lib/dokumen"
 import {
   ActionButton,
   Alert,
+  Badge,
   Card,
   CardTitle,
   DataTable,
@@ -31,7 +32,7 @@ import { cn } from "@/lib/cn"
 import { formatTanggalLengkap, formatTanggalSingkat } from "@/utils"
 import { normalizeReklame, normalizeRiwayat } from "@/utils"
 import { titikJanakaKeReklame } from "@/utils/titikJanaka"
-import { useTitikJanaka } from "@/hooks/useLaporan"
+import { useLaporan, useTitikJanaka } from "@/hooks/useLaporan"
 import type { ReklameItem, RiwayatSK } from "@/utils/reklame"
 
 export default function DetailReklame() {
@@ -46,6 +47,20 @@ export default function DetailReklame() {
 
   /* Titik temuan lapangan dipakai untuk id berawalan `janaka-`. */
   const { titik: titikJanaka } = useTitikJanaka()
+  const { executedIds } = useLaporan()
+
+  const idTitikUntukLaporan = item?.dariJANAKA
+    ? item.id.replace(/^janaka-/, "")
+    : item?.id
+  const sumberTitikJanaka = item?.dariJANAKA
+    ? titikJanaka.find((t) => t.id === idTitikUntukLaporan)
+    : undefined
+  const sudahDitindak = Boolean(
+    item && (
+      (idTitikUntukLaporan && executedIds.has(idTitikUntukLaporan)) ||
+      sumberTitikJanaka?.sudahDieksekusi
+    ),
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -316,13 +331,19 @@ export default function DetailReklame() {
           subtitle={item.alamat}
           icon={<Building2 className="w-5 h-5" />}
           action={
-            <ActionButton
-              onClick={() => navigate(`/execution?reklameId=${item.id}`)}
-              icon={<ClipboardCheck className="h-4 w-4" />}
-              className="w-full justify-center sm:w-auto"
-            >
-              Buat Laporan
-            </ActionButton>
+            sudahDitindak ? (
+              <Badge tone="emerald" className="px-3 py-1.5 text-xs">
+                Sudah Ditindak
+              </Badge>
+            ) : (
+              <ActionButton
+                onClick={() => navigate(`/laporan?reklameId=${encodeURIComponent(item.id)}`)}
+                icon={<ClipboardCheck className="h-4 w-4" />}
+                className="w-full justify-center sm:w-auto"
+              >
+                Buat Laporan
+              </ActionButton>
+            )
           }
         />
 

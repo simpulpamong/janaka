@@ -1,0 +1,53 @@
+# Development tools & scripts (tidak perlu di-deploy ke Vercel)
+tools/
+tools/**/*
+
+# Legacy scripts
+tools/legacy/
+tools/legacy/**/*
+
+# Environment files (disetel di Vercel Dashboard)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE & editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dokumentasi
+README.md
+*.md
+!vercel.json
+
+# Linting & formatting config (tidak dipakai build)
+.oxlintrc.json
+
+# TypeScript config khusus tools (bukan untuk build utama)
+tsconfig.tools.json
+
+# Cache & build artifacts (sudah di-generate ulang)
+dist/
+dist-ssr/
+*.tsbuildinfo
+
+# Coverage & test artifacts
+coverage/
+.nyc_output/
+
+# Vercel sendiri
+.vercel

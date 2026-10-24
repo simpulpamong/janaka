@@ -72,8 +72,7 @@ service cloud.firestore {
       allow read: if isActive();
       allow create: if punyaIzin('aksiTambahTitik')
         && request.resource.data.keys().hasAll(['nama', 'lat', 'lng']);
-      allow update: if punyaIzin('aksiTambahTitik');
-      allow delete: if punyaIzin('aksiTambahTitik');
+      allow update, delete: if punyaIzin('menuReklame');
     }
 
     /* ─── Deny-all untuk collections yang tidak dikenal ─── */

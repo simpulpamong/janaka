@@ -1,8 +1,12 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   Database,
   Gavel,
+  ClipboardCheck,
+  History,
+  LayoutDashboard,
+  ListFilter,
   LockKeyhole,
   LogIn,
   MapPinned,
@@ -25,17 +29,38 @@ import {
 } from "@/lib/kunciLogin"
 
 /**
- * Cakupan kerja JANAKA yang tampil di panel kiri, di bawah judul
- * "Sistem JANAKA". Sengaja tiga baris saja — panel itu panggung identitas,
- * bukan daftar fitur lengkap; daftar panjang justru mengubur logo instansi.
- * Ikon dan labelnya mengikuti menu di Sidebar ("Pemetaan Reklame" memakai
- * ikon yang sama) supaya panel ini menyebut hal yang benar-benar ditemukan
- * pengguna begitu berhasil masuk.
+ * Ringkasan fungsi utama JANAKA yang tampil di panel kiri. Label dan ikon
+ * mengikuti alur yang benar-benar tersedia di menu aplikasi.
  */
 const FITUR = [
-  { ikon: Database, label: "Integrated Data System PTSP" },
-  { ikon: MapPinned, label: "Pemetaan Reklame" },
-  { ikon: Gavel, label: "Manajemen Penegakan Perda" },
+  {
+    ikon: Database,
+    label: "Integrated Data System PTSP",
+  },
+  {
+    ikon: MapPinned,
+    label: "Pemetaan Reklame",
+  },
+  {
+    ikon: ListFilter,
+    label: "Data Reklame & Temuan",
+  },
+  {
+    ikon: ClipboardCheck,
+    label: "Laporan Lapangan",
+  },
+  {
+    ikon: Gavel,
+    label: "Manajemen Penegakan Perda",
+  },
+  {
+    ikon: History,
+    label: "Rekap & Berita Acara",
+  },
+  {
+    ikon: LayoutDashboard,
+    label: "Dashboard Pemantauan",
+  },
 ]
 
 /** Warna aksen — sama dengan identitas visual batik/emas di proyek lain. */
@@ -61,6 +86,7 @@ export default function Login() {
    * awal — lihat catatan di `src/lib/kunciLogin.ts`.
    */
   const [sisaKunci, setSisaKunci] = useState(() => sisaKunciMs())
+  const submitSedangBerlangsung = useRef(false)
   const terkunci = sisaKunci > 0
   const detikKunci = Math.ceil(sisaKunci / 1000)
 
@@ -92,6 +118,7 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (submitSedangBerlangsung.current) return
     setError(null)
 
     /*
@@ -114,6 +141,7 @@ export default function Login() {
       return
     }
 
+    submitSedangBerlangsung.current = true
     setLoading(true)
     try {
       await login(username, password)
@@ -144,6 +172,7 @@ export default function Login() {
         showToast(message, "error")
       }
     } finally {
+      submitSedangBerlangsung.current = false
       setLoading(false)
     }
   }
@@ -178,21 +207,19 @@ export default function Login() {
       </button>
 
       {/* ═══ Kartu: dua panel ═══ */}
-      <div className="relative z-20 flex min-h-[480px] w-full max-w-[900px] animate-in fade-in zoom-in-95 overflow-hidden rounded-[24px] shadow-[0_32px_80px_rgba(15,23,42,0.35),0_4px_20px_rgba(15,23,42,0.2)] duration-500 max-md:min-h-0 max-md:max-w-[440px] max-md:flex-col max-md:rounded-[20px]">
+      <div className="relative z-20 flex min-h-[600px] w-full max-w-[1080px] animate-in fade-in zoom-in-95 overflow-hidden rounded-[24px] shadow-[0_32px_80px_rgba(15,23,42,0.35),0_4px_20px_rgba(15,23,42,0.2)] duration-500 max-md:min-h-0 max-md:max-w-[460px] max-md:flex-col max-md:rounded-[20px]">
         {/* ── Panel kiri: identitas instansi ── */}
-        <div className={`relative flex min-w-0 flex-1 flex-col overflow-hidden max-md:flex-none ${dark ? "bg-[#07111f]" : "bg-[#153a63]"}`}>
+        <div className={`relative flex min-w-0 flex-[1.08] flex-col overflow-hidden max-md:flex-none ${dark ? "bg-[#07111f]" : "bg-[#153a63]"}`}>
           {/*
             Foto petugas — pita ("band") di dasar panel.
 
             Dulu fotonya `object-cover` sepenuh panel. Pada panel portrait
             itu memotong sekitar 7% sisi kiri foto — dan yang kena justru
-            petugas paling kiri. Sekarang tingginya dibatasi 60% (naik dari
-            54%, jadi porsinya di panel jauh lebih besar):
+            petugas paling kiri. Foto sekarang memakai tinggi 50% panel agar
+            orangnya lebih terlihat tanpa memenuhi area daftar fitur:
 
-              • `bottom-[-1%]` → tepi bawahnya dilewatkan sedikit dari dasar
-                panel supaya sisi atasnya naik; sisi bawah sengaja TANPA
-                mask sama sekali, jadi tepinya rata dan bersih — bukan
-                gradien blur yang menggantung;
+              • foto menempel di dasar panel agar subjek terlihat di area bawah
+                tanpa mendorong daftar fitur;
               • `w-[95%] left-[1.5%]` + `translate-x-[1%]` → foto digeser
                 sedikit ke kanan. Lebarnya tidak pernah melebihi panel, jadi
                 tidak ada lagi isi foto yang terpotong; sisi kiri dapat
@@ -200,7 +227,7 @@ export default function Login() {
               • `object-[center_16%]` → jendela potong tepat di wajah dan
                 badan (kepala ada di 13–41% tinggi pita), bukan memenggal
                 kepala, dan hanya membuang latar hitam di tepi foto;
-              • mask hanya di 12% atas → pita melebur ke navy di tempat teks
+              • mask hanya di 9% atas → pita melebur ke navy di tempat teks
                 berada tanpa menutupi wajah. Sisi bawah dibiarkan utuh.
           */}
           <img
@@ -211,15 +238,15 @@ export default function Login() {
             fetchPriority="high"
             decoding="async"
             onLoad={() => setFotoLatarSiap(true)}
-            className={`pointer-events-none absolute bottom-[-1%] left-[1.5%] h-[60%] w-[95%] translate-x-[1%] object-cover object-[center_16%] transition-opacity duration-500 max-md:hidden ${fotoLatarSiap ? "opacity-100" : "opacity-0"}`}
+            className={`pointer-events-none absolute bottom-0 left-[1.5%] h-[50%] w-[95%] translate-x-[1%] object-cover object-[center_16%] transition-opacity duration-500 max-md:hidden ${fotoLatarSiap ? "opacity-100" : "opacity-0"}`}
             // Foto dibuat lebih berwarna. `saturate` menyorot warna kulit
             // dan lencana yang tadinya pudar di atas navy; tanpa itu foto
             // terbaca sebagai abu-abu. `blur(0.8px)` menipiskan detail
             // supaya pita foto tidak berebut perhatian dengan teks.
             style={{
               filter: "saturate(1.22) contrast(1.02) brightness(1.12) blur(0.8px)",
-              maskImage: "linear-gradient(to bottom, transparent 0%, #000 12%, #000 100%)",
-              WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, #000 12%, #000 100%)",
+              maskImage: "linear-gradient(to bottom, transparent 0%, #000 9%, #000 100%)",
+              WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, #000 9%, #000 100%)",
             }}
           />
           {/*
@@ -273,24 +300,22 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="mt-4 flex flex-col gap-3 max-md:hidden">
+            <div className="mt-5 flex flex-col gap-3.5 max-md:hidden">
               <span
                 className="text-[0.72rem] font-extrabold uppercase tracking-[0.22em]"
                 style={{ color: EMAS, textShadow: "0 1px 10px rgba(122, 84, 12, 0.5)" }}
               >
                 Sistem JANAKA
               </span>
-              <ul className="flex flex-col gap-2">
+              <ul className="grid grid-cols-2 gap-x-4 gap-y-3">
                 {FITUR.map(({ ikon: Ikon, label }) => (
-                  <li key={label} className="flex items-center gap-3">
+                  <li key={label} className="flex min-w-0 items-center gap-2.5 rounded-xl border border-white/10 bg-[#07111f]/70 px-2.5 py-2">
                     <Ikon
-                      className="h-[18px] w-[18px] shrink-0"
+                      className="h-4 w-4 shrink-0"
                       style={{ color: EMAS }}
                       aria-hidden="true"
                     />
-                    <span className="text-[0.9rem] font-semibold leading-[1.4] text-white/90">
-                      {label}
-                    </span>
+                    <span className="min-w-0 text-[0.75rem] font-bold leading-[1.35] text-white/95">{label}</span>
                   </li>
                 ))}
               </ul>
@@ -299,7 +324,7 @@ export default function Login() {
         </div>
 
         {/* ── Panel kanan: identitas sistem + formulir ── */}
-        <div className="relative flex flex-1 flex-col justify-center bg-white px-8 py-7 transition-colors duration-300 max-md:px-[22px] max-md:pb-7 max-md:pt-5 dark:bg-[#121a2b]">
+        <div className="relative flex flex-1 flex-col justify-center bg-white px-10 py-9 transition-colors duration-300 max-md:px-[22px] max-md:pb-7 max-md:pt-5 dark:bg-[#121a2b]">
           {/*
             Toggle tema untuk layar kecil.
 
@@ -343,7 +368,7 @@ export default function Login() {
               fetchPriority="high"
               decoding="async"
               draggable="false"
-              className="mx-auto h-auto w-[232px] max-w-full object-contain max-md:w-[156px]"
+              className="mx-auto h-auto w-[260px] max-w-full object-contain max-md:w-[156px]"
             />
             <p className="mt-2 whitespace-nowrap text-[clamp(10.5px,1.4vw,14px)] font-extrabold uppercase leading-[1.5] tracking-[0.08em] text-[#0B4A2E] dark:text-[#FFD23F]">
               Jaringan Navigasi Penegakan Perda
@@ -423,7 +448,7 @@ export default function Login() {
                 }}
                 onBlur={() => setUsername((v) => normalisasiUsername(v))}
                 disabled={loading}
-                className="w-full rounded-[10px] border-[1.5px] border-slate-200 bg-[#f8fafc] py-[11px] pl-[38px] pr-3.5 text-[0.87rem] text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-200 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)] disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-white/[0.05] dark:text-slate-100 dark:focus:bg-white/[0.08] dark:[&:-webkit-autofill]:shadow-[0_0_0_1000px_#121a2b_inset] dark:[&:-webkit-autofill]:[-webkit-text-fill-color:#f1f5f9]"
+                className="w-full rounded-[10px] border-[1.5px] border-slate-200 bg-[#f8fafc] py-[11px] pl-[38px] pr-3.5 text-[0.87rem] text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-[border-color,box-shadow,background-color] duration-150 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)] disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-white/[0.05] dark:text-slate-100 dark:focus:bg-white/[0.08] dark:[&:-webkit-autofill]:shadow-[0_0_0_1000px_#121a2b_inset] dark:[&:-webkit-autofill]:[-webkit-text-fill-color:#f1f5f9]"
                 />
               </div>
             </Field>
@@ -443,7 +468,7 @@ export default function Login() {
                 maxLength={PASSWORD_MAX}
                 leadingIcon={<LockKeyhole className="h-[15px] w-[15px]" strokeWidth={2.5} />}
                 disabled={loading}
-                className="[&_input]:rounded-[10px] [&_input]:border-[1.5px] [&_input]:py-[11px] [&_input]:pl-[38px] [&_input]:text-[0.87rem] [&_input]:shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] [&_input]:transition-all [&_input]:duration-200 [&_input]:outline-none [&_input]:focus:border-blue-500 [&_input]:focus:bg-white [&_input]:focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)] dark:[&_input]:border-slate-700 dark:[&_input]:bg-white/[0.05] dark:[&_input]:focus:bg-white/[0.08] dark:[&_input]:[&:-webkit-autofill]:shadow-[0_0_0_1000px_#121a2b_inset] dark:[&_input]:[&:-webkit-autofill]:[-webkit-text-fill-color:#f1f5f9]"
+                className="[&_input]:rounded-[10px] [&_input]:border-[1.5px] [&_input]:py-[11px] [&_input]:pl-[38px] [&_input]:text-[0.87rem] [&_input]:shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] [&_input]:transition-[border-color,box-shadow,background-color] [&_input]:duration-150 [&_input]:outline-none [&_input]:focus:border-blue-500 [&_input]:focus:bg-white [&_input]:focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)] dark:[&_input]:border-slate-700 dark:[&_input]:bg-white/[0.05] dark:[&_input]:focus:bg-white/[0.08] dark:[&_input]:[&:-webkit-autofill]:shadow-[0_0_0_1000px_#121a2b_inset] dark:[&_input]:[&:-webkit-autofill]:[-webkit-text-fill-color:#f1f5f9]"
               />
             </Field>
 
