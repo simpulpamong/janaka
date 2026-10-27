@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   Database,
-  Gavel,
   ClipboardCheck,
   History,
   LayoutDashboard,
@@ -48,10 +47,6 @@ const FITUR = [
   {
     ikon: ClipboardCheck,
     label: "Laporan Lapangan",
-  },
-  {
-    ikon: Gavel,
-    label: "Manajemen Penegakan Perda",
   },
   {
     ikon: History,
