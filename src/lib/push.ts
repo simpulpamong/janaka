@@ -41,8 +41,11 @@ export async function activatePush() {
     throw new Error(permission === "denied" ? "Izin notifikasi diblokir. Izinkan dari pengaturan situs browser." : "Izin notifikasi belum diberikan.")
   }
   const registration = await navigator.serviceWorker.getRegistration() ?? await navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" })
-  await navigator.serviceWorker.ready
-  const existing = await registration.pushManager.getSubscription()
+  const ready = await Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error("Service worker belum siap. Muat ulang halaman lalu coba lagi.")), 10000)),
+  ])
+  const existing = await ready.pushManager.getSubscription()
   const subscription = existing ?? await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64ToBytes(key).buffer as ArrayBuffer })
   await call("subscribe", { subscription: subscription.toJSON() })
   return subscription

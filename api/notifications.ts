@@ -6,5 +6,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if ((req.method === "POST" || req.method === "DELETE") && action === "unsubscribe") { await removeSubscription(user.uid, req.body.endpoint); return res.status(200).json({ ok: true }) }
     if (req.method === "POST" && action === "test") { return res.status(200).json(await sendPush({ title: "JANAKA", body: "Notifikasi berhasil diaktifkan", data: { url: "/" } }, s => s.uid === user.uid)) }
     return res.status(400).json({ error: "invalid action" })
-  } catch { return res.status(401).json({ error: "unauthorized" }) }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Gagal memproses notifikasi"
+    const status = message === "unauthorized" ? 401 : 500
+    return res.status(status).json({ error: message })
+  }
 }
