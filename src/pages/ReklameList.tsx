@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import { CheckCircle2, MapPin, Pencil, RotateCcw, Save, Search, Trash2 } from "lucide-react"
+import { CheckCircle2, Download, MapPin, Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react"
+import * as XLSX from "xlsx"
 import { AppLayout } from "@/components/layout"
 import { DataStatusBanner } from "@/components/common/DataStatusBanner"
 import { KerangkaDataReklame } from "@/components/common/Kerangka"
@@ -10,15 +11,14 @@ import {
   Card,
   DataTable,
   Field,
-  Input,
   InputWithIcon,
   Pagination,
-  Textarea,
   type Column,
 } from "@/components/ui/primitives"
 import { Dropdown } from "@/components/ui/Dropdown"
 import { ConfirmDialog, Modal } from "@/components/ui/Modal"
-import { MapPickerModal } from "@/components/peta/MapPickerModal"
+import { FieldFindingModal, type FieldFinding } from "@/components/common/FieldFindingModal"
+import { OPSI_JENIS_REKLAME } from "@/lib/access"
 import { useDebounce } from "@/hooks/useDebounce"
 import { useToast } from "@/hooks/useToast"
 import { useLaporan, useTitikJanaka } from "@/hooks/useLaporan"
@@ -44,16 +44,7 @@ type FilterStatus = StatusSK | "TANPA_SK" | "SEMUA"
 /** Kategori sumber data — memisahkan PTSP dari input JANAKA di satu tabel. */
 type FilterSumber = "SEMUA" | "PTSP" | "JANAKA"
 
-interface DraftTemuan {
-  nama: string
-  alamat: string
-  lat: string
-  lng: string
-  keterangan: string
-  jenisReklame: string
-  panjang: string
-  lebar: string
-}
+type DraftTemuan = FieldFinding
 
 export default function ReklameList() {
   const navigate = useNavigate()
@@ -76,7 +67,14 @@ export default function ReklameList() {
   const [temuanEdit, setTemuanEdit] = useState<TitikJanaka | null>(null)
   const [draftEdit, setDraftEdit] = useState<DraftTemuan | null>(null)
   const [menyimpanEdit, setMenyimpanEdit] = useState(false)
-  const [petaTemuanTerbuka, setPetaTemuanTerbuka] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exportSource, setExportSource] = useState<FilterSumber>("SEMUA")
+  const [exportStatus, setExportStatus] = useState<FilterStatus>("SEMUA")
+  const [exporting, setExporting] = useState(false)
+  const [exportProgress, setExportProgress] = useState(0)
+  const [tambahOpen, setTambahOpen] = useState(false)
+  const [tambahSaving, setTambahSaving] = useState(false)
+  const [tambahForm, setTambahForm] = useState({ nama: "", alamat: "", jenisReklame: OPSI_JENIS_REKLAME[0]?.value ?? "Papan Nama Tiang", lat: "", lng: "", keterangan: "", panjang: "", lebar: "" })
 
   const [search, setSearch] = useState(searchParams.get("search") ?? "")
   const [status, setStatus] = useState<FilterStatus>(
@@ -162,6 +160,55 @@ export default function ReklameList() {
     setStatus("SEMUA")
     setSumber("SEMUA")
     setPage(1)
+  }
+
+  const handleExport = async () => {
+    setExporting(true)
+    setExportProgress(10)
+    await new Promise((resolve) => setTimeout(resolve, 80))
+    const rows = reklameList.filter((r) => {
+      if (exportSource === "PTSP" && r.dariJANAKA) return false
+      if (exportSource === "JANAKA" && !r.dariJANAKA) return false
+      if (exportStatus === "TANPA_SK") return !r.adaSK
+      if (exportStatus !== "SEMUA" && r.statusSK !== exportStatus) return false
+      return true
+    })
+    setExportProgress(45)
+    const data = rows.map((r, i) => ({
+      "No": i + 1, "Sumber": r.dariJANAKA ? "Temuan Lapangan" : "PTSP",
+      "Nama Pemilik": r.namaPemilik, "Naskah Reklame": r.naskahReklame,
+      "Alamat": r.alamat, "Desa": r.desa, "Kecamatan": r.kecamatan,
+      "Jenis": r.jenisReklame, "Dimensi": r.dimensi, "No. SK": r.noSK,
+      "Berlaku Sampai": r.berlakuSampai ?? "-", "Status": r.statusSK,
+      "Latitude": r.hasCoordinate ? r.lat : "-", "Longitude": r.hasCoordinate ? r.lng : "-",
+      "Link SK": r.urlSK || "-",
+    }))
+    const sheet = XLSX.utils.json_to_sheet(data)
+    sheet["!cols"] = Object.keys(data[0] ?? {}).map((key) => ({ wch: Math.min(48, Math.max(12, key.length + 4)) }))
+    sheet["!freeze"] = { xSplit: 0, ySplit: 1 }
+    const book = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(book, sheet, "Data Reklame")
+    setExportProgress(80)
+    XLSX.writeFile(book, `data-reklame-${new Date().toISOString().slice(0, 10)}.xlsx`)
+    setExportProgress(100)
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    setExporting(false)
+    setExportOpen(false)
+  }
+
+  const handleTambahTitik = async (value: FieldFinding = tambahForm) => {
+    const lat = Number(value.lat), lng = Number(value.lng)
+    if (!value.nama.trim() || !Number.isFinite(lat) || !Number.isFinite(lng)) { showToast("Nama dan koordinat wajib diisi", "error"); return }
+    setTambahSaving(true)
+    try {
+      const titik = titikJanaka.find((t) => t.id === "__new__")
+      void titik
+      await fetch("/api/janaka/titik:tambah", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nama: value.nama.trim(), alamat: value.alamat.trim(), lat, lng, jenisReklame: value.jenisReklame, keterangan: value.keterangan.trim(), panjang: Number(value.panjang) || 0, lebar: Number(value.lebar) || 0, petugas: "-" })
+      })
+      showToast("Titik temuan berhasil ditambahkan", "success")
+      setTambahOpen(false)
+      window.location.reload()
+    } catch (err) { showToast(err instanceof Error ? err.message : "Gagal menambahkan titik", "error") } finally { setTambahSaving(false) }
   }
 
   const handleRefresh = () => {
@@ -373,21 +420,33 @@ export default function ReklameList() {
         key: "aksi",
         header: "Aksi",
         render: (r) => (
-          <div className="grid w-[152px] grid-cols-[minmax(60px,1fr)_40px_40px] items-center gap-1.5">
+          <div className="flex w-[190px] min-w-[190px] flex-nowrap items-center gap-1.5">
             <ActionButton
               size="sm"
               variant="secondary"
-              className={`w-full justify-center ${r.dariJANAKA ? "" : "col-span-3"}`}
+              className="!h-8 min-w-0 flex-1 justify-center whitespace-nowrap !px-2"
               onClick={() => navigate(`/data-reklame/${r.id}`)}
             >
               Detail
+            </ActionButton>
+            <ActionButton
+              size="sm"
+              variant="secondary"
+              className="!h-8 !w-8 shrink-0 !px-0"
+              aria-label={`Buka lokasi ${r.namaPemilik} di pemetaan`}
+              title={r.hasCoordinate ? "Buka di Pemetaan" : "Koordinat belum tersedia"}
+              disabled={!r.hasCoordinate}
+              onClick={() => navigate(`/mapping?reklameId=${encodeURIComponent(r.id)}`)}
+              icon={<MapPin className="h-4 w-4" />}
+            >
+              <span className="sr-only">Pemetaan</span>
             </ActionButton>
             {r.dariJANAKA ? (
               <>
               <ActionButton
                 size="sm"
                 variant="secondary"
-                className="!h-8 !w-10 !px-0"
+                className="!h-8 !w-8 shrink-0 !px-0"
                 aria-label={`Edit temuan ${r.namaPemilik}`}
                 title="Edit temuan"
                 onClick={() => mulaiEditTemuan(r)}
@@ -398,7 +457,7 @@ export default function ReklameList() {
               <ActionButton
                 size="sm"
                 variant="danger"
-                className="!h-8 !w-10 !px-0"
+                className="!h-8 !w-8 shrink-0 !px-0"
                 aria-label={`Hapus temuan ${r.namaPemilik}`}
                 title="Hapus temuan"
                 onClick={() => setTemuanHapus(r)}
@@ -410,7 +469,7 @@ export default function ReklameList() {
             ) : null}
           </div>
         ),
-        className: "w-[152px]",
+        className: "w-[190px] min-w-[190px]",
       },
     ],
     [navigate, safePage, titikJanaka],
@@ -418,73 +477,29 @@ export default function ReklameList() {
 
   return (
     <AppLayout onRefresh={handleRefresh} refreshing={loading}>
-      <Modal
+      <FieldFindingModal
         open={!!temuanEdit && !!draftEdit}
         title="Edit Temuan Lapangan"
+        initial={draftEdit}
+        saving={menyimpanEdit}
+        submitLabel="Simpan Perubahan"
+        onSubmit={(value) => { setDraftEdit(value); void handleSimpanEdit() }}
         onClose={() => { if (!menyimpanEdit) { setTemuanEdit(null); setDraftEdit(null) } }}
-        size="lg"
-        footer={
-          <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <ActionButton variant="secondary" disabled={menyimpanEdit} onClick={() => { setTemuanEdit(null); setDraftEdit(null) }}>Batal</ActionButton>
-            <ActionButton loading={menyimpanEdit} onClick={() => void handleSimpanEdit()} icon={<Save className="h-4 w-4" />}>Simpan Perubahan</ActionButton>
-          </div>
-        }
-      >
-        {draftEdit ? <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Nama / Nama Usaha" required htmlFor="edit-temuan-nama" className="sm:col-span-2">
-            <Input id="edit-temuan-nama" value={draftEdit.nama} onChange={(e) => setDraftEdit((d) => d ? { ...d, nama: e.target.value } : d)} placeholder="Nama pemilik atau usaha" />
-          </Field>
-          <Field label="Alamat" htmlFor="edit-temuan-alamat" className="sm:col-span-2">
-            <Input id="edit-temuan-alamat" value={draftEdit.alamat} onChange={(e) => setDraftEdit((d) => d ? { ...d, alamat: e.target.value } : d)} placeholder="Alamat lokasi temuan" />
-          </Field>
-          <div className="space-y-3 sm:col-span-2">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Latitude" required htmlFor="edit-temuan-lat">
-                <Input id="edit-temuan-lat" type="number" step="any" value={draftEdit.lat} onChange={(e) => setDraftEdit((d) => d ? { ...d, lat: e.target.value } : d)} />
-              </Field>
-              <Field label="Longitude" required htmlFor="edit-temuan-lng">
-                <Input id="edit-temuan-lng" type="number" step="any" value={draftEdit.lng} onChange={(e) => setDraftEdit((d) => d ? { ...d, lng: e.target.value } : d)} />
-              </Field>
-            </div>
-            <ActionButton
-              variant="secondary"
-              onClick={() => setPetaTemuanTerbuka(true)}
-              icon={<MapPin className="h-4 w-4" />}
-            >
-              Pilih Titik di Peta
-            </ActionButton>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Klik lokasi pada peta atau geser pin. Koordinat akan terisi otomatis.
-            </p>
-          </div>
-          <Field label="Jenis Reklame" htmlFor="edit-temuan-jenis">
-            <Input id="edit-temuan-jenis" value={draftEdit.jenisReklame} onChange={(e) => setDraftEdit((d) => d ? { ...d, jenisReklame: e.target.value } : d)} placeholder="Contoh: Billboard" />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Panjang (cm)" htmlFor="edit-temuan-panjang">
-              <Input id="edit-temuan-panjang" type="number" min="0" step="any" value={draftEdit.panjang} onChange={(e) => setDraftEdit((d) => d ? { ...d, panjang: e.target.value } : d)} />
-            </Field>
-            <Field label="Lebar (cm)" htmlFor="edit-temuan-lebar">
-              <Input id="edit-temuan-lebar" type="number" min="0" step="any" value={draftEdit.lebar} onChange={(e) => setDraftEdit((d) => d ? { ...d, lebar: e.target.value } : d)} />
-            </Field>
-          </div>
-          <Field label="Keterangan Temuan" htmlFor="edit-temuan-keterangan" className="sm:col-span-2">
-            <Textarea id="edit-temuan-keterangan" value={draftEdit.keterangan} onChange={(e) => setDraftEdit((d) => d ? { ...d, keterangan: e.target.value } : d)} placeholder="Catatan kondisi atau temuan lapangan" />
-          </Field>
-        </div> : null}
-      </Modal>
-      <MapPickerModal
-        open={petaTemuanTerbuka && !!draftEdit}
-        onClose={() => setPetaTemuanTerbuka(false)}
-        initialLat={draftEdit ? Number(draftEdit.lat) : undefined}
-        initialLng={draftEdit ? Number(draftEdit.lng) : undefined}
-        onSelect={(pos) => setDraftEdit((draft) => draft ? {
-          ...draft,
-          lat: String(pos.lat),
-          lng: String(pos.lng),
-        } : draft)}
-        title="Pilih Lokasi Temuan"
       />
+      <FieldFindingModal
+        open={tambahOpen}
+        title="Tambah Titik Temuan Lapangan"
+        saving={tambahSaving}
+        onClose={() => { if (!tambahSaving) setTambahOpen(false) }}
+        onSubmit={(value) => { setTambahForm(value); void handleTambahTitik(value) }}
+      />
+      <Modal open={exportOpen} onClose={() => { if (!exporting) setExportOpen(false) }} title="Export Data Reklame ke Excel" size="md" footer={<div className="flex justify-end gap-2"><ActionButton variant="secondary" disabled={exporting} onClick={() => setExportOpen(false)}>Batal</ActionButton><ActionButton loading={exporting} onClick={() => void handleExport()} icon={<Download className="h-4 w-4" />}>Export XLSX</ActionButton></div>}>
+        <div className="space-y-4">
+          <Field label="Sumber data"><Dropdown value={exportSource} onChange={(v) => setExportSource(v as FilterSumber)} opsi={[{ value: "SEMUA", label: "Semua data" }, { value: "PTSP", label: "PTSP saja" }, { value: "JANAKA", label: "Temuan lapangan saja" }]} /></Field>
+          <Field label="Status"><Dropdown value={exportStatus} onChange={(v) => setExportStatus(v as FilterStatus)} opsi={[{ value: "SEMUA", label: "Semua status" }, { value: "Aktif", label: "Aktif" }, { value: "Akan Habis", label: "Akan habis" }, { value: "Kadaluarsa", label: "Kadaluarsa" }, { value: "TANPA_SK", label: "SK tidak ada" }]} /></Field>
+          {exporting ? <div className="space-y-2"><div className="flex justify-between text-xs font-semibold"><span>Menyiapkan file Excel…</span><span>{exportProgress}%</span></div><div className="h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${exportProgress}%` }} /></div></div> : <p className="text-xs text-slate-500">Header, lebar kolom, freeze header, koordinat, dan tautan SK akan disertakan.</p>}
+        </div>
+      </Modal>
       <ConfirmDialog
         open={!!temuanHapus}
         tone="danger"
@@ -508,6 +523,7 @@ export default function ReklameList() {
         />
 
         <Card>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-4 dark:border-slate-700/60"><div><h2 className="text-sm font-bold">Data Reklame</h2><p className="text-xs text-slate-500">{reklameList.length} data tersedia</p></div><div className="flex flex-wrap gap-2"><ActionButton size="sm" variant="secondary" onClick={() => setTambahOpen(true)} icon={<Plus className="h-4 w-4" />}>Tambah Titik Temuan</ActionButton><ActionButton size="sm" onClick={() => setExportOpen(true)} icon={<Download className="h-4 w-4" />}>Export Excel</ActionButton></div></div>
           {/*
             Satu baris: pencarian + dua dropdown, tiga kolom sama lebar.
 

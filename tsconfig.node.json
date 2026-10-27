@@ -39,6 +39,7 @@
     "vite-plugin-janaka-api.ts",
     "vite-plugin-pwa-janaka.ts",
     "api/**/*.ts",
+    "server/pushNotifications.ts",
     "server/**/*.ts",
     // Aturan username & password yang dipakai server. Harus ikut
     // terdaftar di sini (proyek composite ~= TS6307 kalau tidak) supaya

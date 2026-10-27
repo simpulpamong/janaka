@@ -47,6 +47,13 @@ const ASET = /\.(?:js|mjs|css|map|png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|eot
 /** Berapa lama menunggu jaringan sebelum jatuh ke cache (navigasi). */
 const TIMEOUT_NAV = 4000
 
+self.addEventListener("push", (event) => {
+  let data = {}
+  try { data = event.data ? event.data.json() : {} } catch { data = { body: event.data?.text() } }
+  event.waitUntil(self.registration.showNotification(data.title || "JANAKA", { body: data.body || "Pembaruan tersedia", icon: "/assets/icon-192.png", badge: "/assets/icon-48.png", data: data.data || {}, vibrate: [100, 50, 100] }))
+})
+self.addEventListener("notificationclick", (event) => { event.notification.close(); event.waitUntil(clients.openWindow(event.notification.data?.url || "/")) })
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {

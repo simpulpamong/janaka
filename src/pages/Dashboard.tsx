@@ -5,13 +5,11 @@ import {
   Building2,
   ExternalLink,
   FileText,
-  MapPinned,
   MapPinOff,
   PieChart,
   Search,
   ShieldAlert,
   ShieldCheck,
-  TriangleAlert,
 } from "lucide-react"
 import { AppLayout } from "@/components/layout"
 import { DataStatusBanner } from "@/components/common/DataStatusBanner"
@@ -95,8 +93,7 @@ export default function Dashboard() {
             label="Total Titik Reklame"
             value={loading && reklameList.length === 0 ? "—" : stats.total}
             hint={`${meta.total || "—"} data di PTSP`}
-            icon={<MapPinned className="w-5 h-5 text-blue-500" />}
-            tone="blue"
+             tone="slate"
           />
           <StatTile
             label="Izin Aktif"
@@ -106,23 +103,20 @@ export default function Dashboard() {
                 ? "Memuat…"
                 : `${formatPersentase(stats.total ? (stats.aktif / stats.total) * 100 : 0, 0)} dari total`
             }
-            icon={<ShieldCheck className="w-5 h-5 text-emerald-500" />}
-            tone="emerald"
+             tone="slate"
           />
           <StatTile
             label="Akan Habis"
             value={loading && reklameList.length === 0 ? "—" : stats.akanHabis}
             hint="≤ 30 hari sebelum berakhir"
-            icon={<TriangleAlert className="w-5 h-5 text-amber-500" />}
-            tone="amber"
+             tone="slate"
             onClick={() => navigate("/data-reklame?status=Akan%20Habis")}
           />
           <StatTile
             label="Kadaluarsa"
             value={loading && reklameList.length === 0 ? "—" : stats.kadaluarsa}
             hint={`${formatPersentase(stats.persenKadaluarsa, 0)} dari total`}
-            icon={<ShieldAlert className="w-5 h-5 text-rose-500" />}
-            tone="rose"
+             tone="slate"
             onClick={() => navigate("/data-reklame?status=Kadaluarsa")}
           />
         </section>

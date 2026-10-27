@@ -360,17 +360,17 @@ export default function Riwayat() {
           <StatTile
             label="Bulan Ini"
             value={laporan.filter((l) => l.tanggal?.startsWith(bulanIni)).length}
-            tone="blue"
+            tone="slate"
           />
           <StatTile
             label="Dari PTSP"
             value={laporan.filter((l) => !l.dariJANAKA).length}
-            tone="emerald"
+            tone="slate"
           />
           <StatTile
             label="Input JANAKA"
             value={laporan.filter((l) => l.dariJANAKA).length}
-            tone="amber"
+            tone="slate"
           />
         </div>
 

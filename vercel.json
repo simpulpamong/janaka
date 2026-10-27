@@ -8,6 +8,7 @@
   "regions": [
     "sin1"
   ],
+  "crons": [{ "path": "/api/cron/ptsp-expired", "schedule": "0 1 * * *" }],
   "functions": {
     "api/*.ts": {
       "maxDuration": 30,

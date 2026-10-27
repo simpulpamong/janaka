@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState, Suspense } from "react"
 import { lazy } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import {
   FileText,
-  LocateFixed,
   MapPin,
   MapPinned,
   Plus,
@@ -19,15 +18,11 @@ import {
   Badge,
   Card,
   EmptyState,
-  Field,
-  Input,
   InputWithIcon,
-  Textarea,
 } from "@/components/ui/primitives"
 import { Dropdown } from "@/components/ui/Dropdown"
 import { Modal } from "@/components/ui/Modal"
-import { MapPickerModal } from "@/components/peta/MapPickerModal"
-import { cn } from "@/lib/cn"
+import { FieldFindingModal, type FieldFinding } from "@/components/common/FieldFindingModal"
 import { useDebounce } from "@/hooks/useDebounce"
 import { useGeolocation } from "@/hooks/useGeolocation"
 import { useLaporan, useTitikJanaka } from "@/hooks/useLaporan"
@@ -37,7 +32,6 @@ import { useAuth } from "@/context/AuthContext"
 
 import type { StatusSK } from "@/utils/format"
 import type { TitikPeta } from "@/types"
-import { OPSI_JENIS_REKLAME } from "@/lib/access"
 
 
 
@@ -63,6 +57,8 @@ type FilterStatus = StatusSK | "Tidak Berizin" | "SEMUA" | "Sudah Ditindak"
 
 export default function Mapping() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const activeReklameId = searchParams.get("reklameId")
 
   const {
     reklameList,
@@ -75,7 +71,7 @@ export default function Mapping() {
   } = useReklamaStore()
   const { executedIds, laporanCount, error: laporanError, reload: reloadLaporan } = useLaporan()
   const { titik, tambah, error: titikError, reload: reloadTitik } = useTitikJanaka()
-  const { coords, loading: geoLoading, requestLocation } = useGeolocation()
+  const { coords } = useGeolocation()
   const { showToast } = useToast()
   const { can } = useAuth()
   const bolehTambahTitik = can("aksiTambahTitik")
@@ -84,10 +80,10 @@ export default function Mapping() {
   const [status, setStatus] = useState<FilterStatus>("SEMUA")
   const [sumberFilter, setSumberFilter] = useState<"SEMUA" | "PTSP" | "JANAKA">("SEMUA")
   const [selectedDetail, setSelectedDetail] = useState<TitikPeta | null>(null)
+  const [mapFocusId] = useState<string | null>(activeReklameId)
 
   // State modal titik baru
   const [modalTitikBaru, setModalTitikBaru] = useState(false)
-  const [mapPickerOpen, setMapPickerOpen] = useState(false)
   const [formTitik, setFormTitik] = useState({
     nama: "",
     alamat: "",
@@ -365,6 +361,10 @@ export default function Mapping() {
                 onClearDrawings={handleClearDrawings}
                 onDetailClick={(item) => setSelectedDetail(item as TitikPeta)}
                 onLokasiClick={(item) => bukaPeta(item.lat, item.lng, item.nama)}
+                focusId={mapFocusId}
+                // Fokus tetap dipertahankan agar popup tidak menutup sendiri saat
+                // data PTSP/temuan selesai sinkron dan marker dirender ulang.
+                onFocusHandled={() => undefined}
               />
             </Suspense>
           )}
@@ -495,148 +495,12 @@ export default function Mapping() {
           </Modal>
         )}
 
-        {/* Modal tambah titik tidak berizin */}
-        <Modal
-          open={modalTitikBaru}
-          onClose={() => setModalTitikBaru(false)}
-          title="Tambah Titik Reklame Tanpa Izin"
-          icon={<Plus className="w-5 h-5 text-amber-500" />}
-          size="lg"
-          footer={
-            <div className="flex items-center justify-end gap-3 w-full">
-              <ActionButton variant="secondary" onClick={() => setModalTitikBaru(false)}>
-                Batal
-              </ActionButton>
-              <ActionButton
-                onClick={() => void handleSimpanTitik()}
-                disabled={menyimpanTitik}
-                icon={<Plus className="h-4 w-4" />}
-              >
-                {menyimpanTitik ? "Menyimpan…" : "Simpan Titik"}
-              </ActionButton>
-            </div>
-          }
-        >
-          <div className="space-y-4">
-            <Field label="Nama / Nama Usaha" required htmlFor="mapNamaTitik">
-              <Input
-                id="mapNamaTitik"
-                name="mapNamaTitik"
-                placeholder="mis. Toko Sembako Berkah / Reklame Billboard"
-                value={formTitik.nama}
-                onChange={(e) => setFormTitik((f) => ({ ...f, nama: e.target.value }))}
-              />
-            </Field>
+        <FieldFindingModal open={modalTitikBaru} onClose={() => setModalTitikBaru(false)} title="Tambah Titik Reklame Tanpa Izin" saving={menyimpanTitik} onSubmit={(value: FieldFinding) => {
+          setFormTitik({ nama: value.nama, alamat: value.alamat, jenisReklame: value.jenisReklame, panjang: value.panjang, lebar: value.lebar, keterangan: value.keterangan })
+          setCoordsTitik(value.lat && value.lng ? { lat: Number(value.lat), lng: Number(value.lng) } : null)
+          void handleSimpanTitik()
+        }} />
 
-            <Field label="Alamat Lokasi" htmlFor="mapAlamatTitik">
-              <Input
-                id="mapAlamatTitik"
-                name="mapAlamatTitik"
-                placeholder="mis. Jl. Diponegoro No. 15, Ponorogo"
-                value={formTitik.alamat}
-                onChange={(e) => setFormTitik((f) => ({ ...f, alamat: e.target.value }))}
-              />
-            </Field>
-
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Field label="Jenis Reklame" htmlFor="mapJenisTitik">
-                <Dropdown
-                  id="mapJenisTitik"
-                  aria-label="Jenis Reklame"
-                  value={formTitik.jenisReklame}
-                  onChange={(v: string) => setFormTitik((f) => ({ ...f, jenisReklame: v }))}
-                  opsi={OPSI_JENIS_REKLAME}
-                />
-              </Field>
-              <Field label="Panjang (cm)" htmlFor="mapPanjang">
-                <Input
-                  id="mapPanjang"
-                  name="mapPanjang"
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="150"
-                  value={formTitik.panjang}
-                  onChange={(e) =>
-                    setFormTitik((f) => ({ ...f, panjang: e.target.value.replace(/\D/g, "") }))
-                  }
-                  className="font-mono tabular-nums"
-                />
-              </Field>
-              <Field label="Lebar (cm)" htmlFor="mapLebar">
-                <Input
-                  id="mapLebar"
-                  name="mapLebar"
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="300"
-                  value={formTitik.lebar}
-                  onChange={(e) =>
-                    setFormTitik((f) => ({ ...f, lebar: e.target.value.replace(/\D/g, "") }))
-                  }
-                  className="font-mono tabular-nums"
-                />
-              </Field>
-            </div>
-
-            <Field label="Keterangan Tambahan" htmlFor="mapKeterangan">
-              <Textarea
-                id="mapKeterangan"
-                name="mapKeterangan"
-                placeholder="Kondisi fisik reklame, temuan saat patroli, atau catatan khusus…"
-                value={formTitik.keterangan}
-                onChange={(e) => setFormTitik((f) => ({ ...f, keterangan: e.target.value }))}
-                rows={3}
-              />
-            </Field>
-
-            {/* Pemilihan Koordinat Lokasi */}
-            <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 p-3.5 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Koordinat Lokasi
-                </span>
-                <span className="font-mono text-xs font-semibold text-slate-600 dark:text-slate-300">
-                  {coordsTitik
-                    ? `${coordsTitik.lat.toFixed(6)}, ${coordsTitik.lng.toFixed(6)}`
-                    : coords
-                      ? `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)} (GPS)`
-                      : "Belum ditentukan"}
-                </span>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <ActionButton
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setMapPickerOpen(true)}
-                  icon={<MapPin className="h-4 w-4 text-rose-500" />}
-                >
-                  Pilih di Peta
-                </ActionButton>
-                <ActionButton
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={requestLocation}
-                  disabled={geoLoading}
-                  icon={<LocateFixed className={cn("h-4 w-4", geoLoading && "animate-pulse")} />}
-                >
-                  {geoLoading ? "Mengambil GPS…" : "Ambil Lokasi GPS"}
-                </ActionButton>
-              </div>
-            </div>
-          </div>
-        </Modal>
-
-        {/* Modal Pemilih Koordinat Peta */}
-        <MapPickerModal
-          open={mapPickerOpen}
-          onClose={() => setMapPickerOpen(false)}
-          initialLat={coordsTitik?.lat ?? coords?.lat}
-          initialLng={coordsTitik?.lng ?? coords?.lng}
-          onSelect={(pos) => setCoordsTitik(pos)}
-        />
       </div>
     </AppLayout>
   )

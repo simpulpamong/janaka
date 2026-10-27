@@ -12,6 +12,10 @@ import {
   PenTool,
   UploadCloud,
   X,
+  Bell,
+  BellOff,
+  CheckCircle2,
+  Volume2,
 } from "lucide-react"
 import { AppLayout } from "@/components/layout"
 import {
@@ -48,6 +52,7 @@ import {
 } from "@/lib/formatDokumen"
 import { uploadToCloudinary } from "@/lib/cloudinary"
 import { validateImageFile } from "@/lib/cloudinary/upload"
+import { activatePush, deactivatePush, testPush } from "@/lib/push"
 
 type Tab = "profil" | "pengguna" | "format-dokumen" | "tentang"
 
@@ -139,6 +144,25 @@ function TabProfil({
   const [nip, setNip] = useState(profile?.nip || "")
   const [savingProfil, setSavingProfil] = useState(false)
   const [errorsProfil, setErrorsProfil] = useState<Record<string, string>>({})
+  const [pushActive, setPushActive] = useState(false)
+  const [pushBusy, setPushBusy] = useState(false)
+
+  useEffect(() => {
+    void navigator.serviceWorker?.ready.then(async (registration) => {
+      const subscription = await registration.pushManager?.getSubscription()
+      setPushActive(Boolean(subscription))
+    }).catch(() => undefined)
+  }, [])
+
+  const handlePush = async (action: "activate" | "deactivate" | "test") => {
+    setPushBusy(true)
+    try {
+      if (action === "activate") { await activatePush(); setPushActive(true); showToast("Notifikasi berhasil diaktifkan.", "success") }
+      else if (action === "deactivate") { await deactivatePush(); setPushActive(false); showToast("Notifikasi dinonaktifkan.", "info") }
+      else { await testPush(); showToast("Notifikasi percobaan dikirim.", "success") }
+    } catch (err) { showToast(err instanceof Error ? err.message : "Pengaturan notifikasi gagal.", "error") }
+    finally { setPushBusy(false) }
+  }
 
   /* Sinkronisasi state saat data profil diperbarui */
   useEffect(() => {
@@ -321,6 +345,32 @@ function TabProfil({
               </div>
             ))}
           </dl>
+        </div>
+      </Card>
+
+      <Card>
+        <CardTitle
+          description="Terima pemberitahuan penting JANAKA meskipun aplikasi sedang tidak terbuka."
+          action={<Bell className="h-5 w-5 text-blue-500" />}
+        >
+          Notifikasi Web Push
+        </CardTitle>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className={`mt-0.5 rounded-xl p-2 ${pushActive ? "bg-emerald-500/10 text-emerald-600" : "bg-slate-100 text-slate-500 dark:bg-slate-700"}`}>
+              {pushActive ? <CheckCircle2 className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{pushActive ? "Notifikasi aktif" : "Notifikasi belum aktif"}</p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Izin browser diperlukan. Suara notifikasi bergantung pada pengaturan perangkat dan browser.</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <ActionButton size="sm" variant={pushActive ? "secondary" : "primary"} loading={pushBusy} disabled={pushBusy} onClick={() => void handlePush(pushActive ? "deactivate" : "activate")} icon={pushActive ? <BellOff className="h-4 w-4" /> : <Bell className="h-4 w-4" />}>
+              {pushActive ? "Nonaktifkan" : "Aktifkan"}
+            </ActionButton>
+            {pushActive && <ActionButton size="sm" variant="secondary" loading={pushBusy} disabled={pushBusy} onClick={() => void handlePush("test")} icon={<Volume2 className="h-4 w-4" />}>Uji Notifikasi</ActionButton>}
+          </div>
         </div>
       </Card>
 

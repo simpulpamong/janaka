@@ -67,6 +67,8 @@ interface MappingWithDrawProps {
    * pemanggil menampilkannya di modal tertanam.
    */
   onLokasiClick?: (item: ReklamePoint) => void
+  focusId?: string | null
+  onFocusHandled?: () => void
 }
 
 /* ─── Konstanta ─────────────────────────────────────────────────────────── */
@@ -210,14 +212,14 @@ function buatLayerBatasPonorogo(L: any, data: any, map: any) {
     renderer,
     smoothFactor: 2.5,
     interactive: false,
-    style: { color: "#ffffff", weight: 5, opacity: 0.9, fill: false },
+    style: { color: "#0f172a", weight: 5, opacity: 0.9, fill: false },
   }))
   layer.addLayer(L.geoJSON(data, {
     pane: "janaka-boundary-pane",
     renderer,
     smoothFactor: 2.5,
     interactive: false,
-    style: { color: "#e11d48", weight: 2.5, opacity: 1, fill: false },
+    style: { color: "#000000", weight: 2.5, opacity: 1, fill: false },
   }))
 
   return layer
@@ -329,6 +331,8 @@ export function MappingWithDraw({
   onClearDrawings,
   onDetailClick,
   onLokasiClick,
+  focusId,
+  onFocusHandled,
 }: MappingWithDrawProps) {
   const mapRef             = useRef<any>(null)
   const currentBaseRef     = useRef<any>(null)
@@ -544,6 +548,41 @@ export function MappingWithDraw({
 
   /* ── Re-render markers saat items berubah ── */
   useEffect(() => {
+    if (!mapRef.current || !window.L || !isMapReady || !focusId) return
+    const item = items.find((entry) => entry.id === focusId || entry.id === focusId.replace(/^janaka-/, ""))
+    if (!item) return
+    const map = mapRef.current
+    map.setView([item.lat, item.lng], 17, { animate: true })
+
+    // Marker dirender setelah data peta masuk. Coba beberapa kali agar
+    // perpindahan halaman tetap stabil meskipun API PTSP/Firestore terlambat.
+    let percobaan = 0
+    const bukaTitik = () => {
+      if (!mapRef.current || mapRef.current !== map) return
+      let marker: any = null
+      map.eachLayer((layer: any) => {
+        const posisi = layer.getLatLng?.()
+        if (posisi && Math.abs(posisi.lat - item.lat) < 0.000001 && Math.abs(posisi.lng - item.lng) < 0.000001) {
+          marker = layer
+        }
+      })
+      if (marker) {
+        marker.openPopup?.()
+        marker.setStyle?.({ radius: 13, weight: 4, color: "#0f172a", fillColor: "#facc15", fillOpacity: 1 })
+        window.setTimeout(() => marker?.setStyle?.({
+          radius: item.sudahDieksekusi ? 6 : 9,
+          weight: item.sumber === "JANAKA" ? 3 : 2,
+          color: item.sudahDieksekusi ? "#22c55e" : STATUS_WARNA[item.status] ?? (item.sumber === "JANAKA" ? "#a855f7" : "#3b82f6"),
+        }), 1800)
+        onFocusHandled?.()
+        return
+      }
+      if (++percobaan < 12) window.setTimeout(bukaTitik, 100)
+    }
+    window.setTimeout(bukaTitik, 150)
+  }, [focusId, items, isMapReady, onFocusHandled])
+
+  useEffect(() => {
     if (!mapRef.current || !window.L || !isMapReady) return
     const L = window.L; const map = mapRef.current
     map.eachLayer((layer: any) => {
@@ -552,7 +591,24 @@ export function MappingWithDraw({
         map.removeLayer(layer)
     })
     renderMarkers(map, L, items, markerRendererRef.current)
-  }, [items, isMapReady])
+
+    // Jika navigasi datang dari Data Reklame, pertahankan titik aktif dan
+    // buka kembali popup setelah marker selesai dibuat. Ini mencegah popup
+    // menutup sendiri ketika sinkronisasi PTSP/Firestore selesai.
+    if (focusId) {
+      const focused = items.find((entry) => entry.id === focusId || entry.id === focusId.replace(/^janaka-/, ""))
+      if (focused) {
+        window.setTimeout(() => {
+          map.eachLayer((layer: any) => {
+            const posisi = layer.getLatLng?.()
+            if (posisi && Math.abs(posisi.lat - focused.lat) < 0.000001 && Math.abs(posisi.lng - focused.lng) < 0.000001) {
+              layer.openPopup?.()
+            }
+          })
+        }, 0)
+      }
+    }
+  }, [items, isMapReady, focusId])
 
   /* ── Ganti basemap ── */
   const gantiBasemap = useCallback((id: string) => {
