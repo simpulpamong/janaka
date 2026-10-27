@@ -23,8 +23,8 @@ let promptTersimpan: InstallPromptEvent | null = null
 const pendengar = new Set<() => void>()
 if (typeof window !== "undefined") {
   window.addEventListener("beforeinstallprompt", (event) => {
-    // Tanpa `preventDefault`, Chrome menampilkan bilah "Add to homescreen"
-    // bawaannya — persis hal yang tidak kita mau karena aplikasi punya UI sendiri.
+    // Simpan event agar tombol install aplikasi dapat memanggil prompt()
+    // dari aksi pengguna. Banner native tidak ditampilkan otomatis.
     event.preventDefault()
     promptTersimpan = event as InstallPromptEvent
     pendengar.forEach((panggil) => panggil())

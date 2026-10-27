@@ -142,7 +142,9 @@ export function pwaJanaka(): Plugin {
         ),
       )`,
           `      await cache.addAll(
-        ["/manifest.webmanifest", "/assets/icon-32.png", ...PRECACHE].map((u) =>
+        ["/manifest.webmanifest", "/assets/icon-32.png", ...PRECACHE.map((entry) => entry.url)]
+         .filter((u, index, urls) => urls.indexOf(u) === index)
+         .map((u) =>
           new Request(u, { cache: "reload" }),
         ),
       )`,
